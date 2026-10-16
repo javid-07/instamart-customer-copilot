@@ -116,3 +116,80 @@ The raw orders dataset was cleaned using pandas in the following order:
 | Total completed order amount | INR 2,998,668.80 | INR 2,998,668.80 |
 
 The cleaning results match the assignment's reference checkpoints.
+
+### Task 3: Clean Customers
+
+The raw customers dataset was cleaned using pandas with the following steps:
+
+1. Standardized city names by removing leading and trailing spaces and converting them to title case.
+2. Standardized gender values into `female`, `male`, and `unknown`.
+3. Replaced invalid ages outside the range of 10–100 with missing values.
+4. Filled missing ages using the median age of the corresponding city.
+5. Converted `signup_date` to datetime format.
+6. Saved the cleaned dataset to `data/clean/customers.csv`.
+
+#### Cleaning Results
+
+| Checkpoint | Actual Result |
+|---|---:|
+| Total customers | 1,200 |
+| Pune | 227 |
+| Delhi | 210 |
+| Bengaluru | 197 |
+| Chennai | 191 |
+| Hyderabad | 191 |
+| Mumbai | 184 |
+| Female | 610 |
+| Male | 560 |
+| Unknown gender | 30 |
+| Missing ages | 0 |
+| Minimum age | 18 |
+| Maximum age | 60 |
+| Missing signup dates | 0 |
+
+### Task 3: Clean Products
+
+The products dataset was validated using pandas. The schema was checked, product IDs were verified for uniqueness, missing values were checked, and product prices were validated to ensure they were positive.
+
+The cleaned dataset was saved to `data/clean/products.csv`.
+
+#### Cleaning Results
+
+| Checkpoint | Actual Result |
+|---|---:|
+| Total products | 40 |
+| Unique product IDs | 40 |
+| Missing values | 0 |
+| Non-positive product prices | 0 |
+
+### Task 5: Store and Validate
+
+#### SQLite Database
+
+The cleaned customers, products, and orders datasets were stored in a SQLite database at `data/instamart.db`.
+
+| Table | Rows |
+|---|---:|
+| `customers` | 1,200 |
+| `products` | 40 |
+| `orders` | 12,309 |
+
+The `order_ts` column is stored in the `YYYY-MM-DD HH:MM:SS` format.
+
+#### Data Validation
+
+A validation script, `validate_data.py`, was created to verify nine checkpoints covering cleaned order counts, unique order IDs, order statuses, missing order amounts, delivery times, and completed order revenue.
+
+Run the validation script using:
+
+```bash
+python validate_data.py
+```
+
+Expected output:
+
+```text
+ALL CHECKPOINTS PASSED
+```
+
+All nine validation checkpoints passed successfully.
