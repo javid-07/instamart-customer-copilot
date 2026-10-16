@@ -1,4 +1,3 @@
-
 # Instamart Customer Intelligence & Support Copilot
 
 ## Overview
@@ -7,9 +6,15 @@ This project builds a customer intelligence and support copilot using synthetic 
 
 ## Reproduce
 
-1. Clone the repository and enter the project folder.
-2. Create a virtual environment using Python 3.11 or newer.
-3. Activate the virtual environment.
-4. Install dependencies from `requirements.txt`.
-5. Run `python generate_data.py` to generate the raw synthetic data.
-6. Run the Part A cleaning, database, validation, SQL analysis and pandas analysis scripts.
+1. Clone the repository: `git clone https://github.com/javid-07/instamart-customer-copilot.git`
+2. Enter the project directory: `cd instamart-customer-copilot`
+3. Create a virtual environment using Python 3.11: `python -m venv .venv`
+4. Activate the virtual environment in PowerShell: `.\.venv\Scripts\Activate.ps1`
+5. Install dependencies: `python -m pip install -r requirements.txt`
+6. Generate the synthetic data: `python generate_data.py`
+
+Expected generator output:
+
+`generated: customers=1200 products=40 orders_raw=13084 tickets=164`
+
+The full reproduction instructions will be completed after the remaining project scripts are implemented.
