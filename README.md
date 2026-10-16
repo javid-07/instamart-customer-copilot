@@ -193,3 +193,21 @@ ALL CHECKPOINTS PASSED
 ```
 
 All nine validation checkpoints passed successfully.
+
+### Task 6: SQL Analysis
+
+Seven SQL queries were saved in `sql/queries.sql` and executed against `data/instamart.db` using Python and `pandas.read_sql_query`. Revenue and customer spend calculations use completed orders only.
+
+| Query | Analysis | Reference Result | Actual Result |
+|---|---|---:|---:|
+| Q1 | `WHERE` and `HAVING` | 30 customers | 30 customers |
+| Q2 | Three-table join: city and category revenue | 30 rows; INR 2,998,668.80 total | 30 rows; INR 2,998,668.80 total |
+| Q3 | Scalar subquery: products above average catalogue price | 11 products | 11 products |
+| Q4 | `LEFT JOIN`: customers with no completed orders | 25 customers | 25 customers |
+| Q5 | CTE: customers spending above the average | 550 customers; INR 2,552.06 average | 550 customers; INR 2,552.06 average |
+| Q6 | `RANK()`, `DENSE_RANK()`, and `ROW_NUMBER()` by city | 8 rows where `RANK()` differs from `ROW_NUMBER()` | 8 rows |
+| Q7 | Daily revenue and cumulative running total | 183 days; INR 2,998,668.80 final total | 183 days; INR 2,998,668.80 final total |
+
+The highest city/category revenue was Bengaluru / Electronics at INR 233,909.45. The top-spending customer in each city also matched the assignment reference results.
+
+**Ranking note:** When customers tie on total spend, `RANK()` assigns the same rank and may skip subsequent ranks, while `ROW_NUMBER()` assigns a unique sequential number to each row.
