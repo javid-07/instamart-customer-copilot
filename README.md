@@ -19,6 +19,10 @@ Expected generator output:
 
 ## Part A — Data Foundation
 
+### Task 1: Reproducible Setup
+
+The project environment was configured using Python 3.11. Dependencies were installed using `requirements.txt`, and the synthetic data generation script was executed successfully. The setup was also tested in a fresh clone.
+
 ### Task 2: Raw Data Audit
 
 The raw customers, products, and orders datasets were inspected using pandas. The audit reports each dataset's shape, column data types, missing-value counts, missing-value percentages, and exact duplicate rows.
@@ -31,13 +35,54 @@ The raw customers, products, and orders datasets were inspected using pandas. Th
 | Products | 40 | 4 | 0 |
 | Orders | 13,084 | 9 | 119 |
 
-#### Key Audit Findings
+#### Customers: Column Audit
 
-- **Orders:** 13,084 raw rows, 119 exact duplicate rows, 656 pending orders, and 12,309 distinct order IDs.
-- **Order amounts:** 120 entries could not be converted to numeric values.
-- **Delivery time:** 106 negative values and 2,541 blank or missing values.
-- **Customers:** 61 missing age values and 6 age values outside the 10–100 range.
-- **City:** 24 distinct raw city spellings were found.
-- **Gender:** 10 distinct non-blank raw spellings and 30 blank values were found.
+| Column | Data Type | Missing Count | Missing Percentage |
+|---|---|---:|---:|
+| `customer_id` | string | 0 | 0.00% |
+| `city` | string | 0 | 0.00% |
+| `signup_date` | string | 0 | 0.00% |
+| `age` | float64 | 61 | 5.08% |
+| `gender` | string | 30 | 2.50% |
+
+#### Products: Column Audit
+
+| Column | Data Type | Missing Count | Missing Percentage |
+|---|---|---:|---:|
+| `product_id` | string | 0 | 0.00% |
+| `product_name` | string | 0 | 0.00% |
+| `category` | string | 0 | 0.00% |
+| `price_inr` | int64 | 0 | 0.00% |
+
+#### Orders: Column Audit
+
+| Column | Data Type | Missing Count | Missing Percentage |
+|---|---|---:|---:|
+| `order_id` | string | 0 | 0.00% |
+| `customer_id` | string | 0 | 0.00% |
+| `product_id` | string | 0 | 0.00% |
+| `quantity` | int64 | 0 | 0.00% |
+| `order_ts` | string | 0 | 0.00% |
+| `status` | string | 0 | 0.00% |
+| `discount_pct` | int64 | 0 | 0.00% |
+| `order_amount` | string | 53 | 0.41% |
+| `delivery_minutes` | float64 | 2,541 | 19.42% |
+
+#### Specific Audit Figures
+
+| Audit Metric | Result |
+|---|---:|
+| Raw orders rows | 13,084 |
+| Exact duplicate order rows | 119 |
+| Rows with pending status | 656 |
+| Distinct `order_id` values | 12,309 |
+| Non-numeric `order_amount` entries | 120 |
+| Negative `delivery_minutes` values | 106 |
+| Blank `delivery_minutes` values | 2,541 |
+| Blank customer age values | 61 |
+| Customer ages outside 10–100 | 6 |
+| Distinct raw city spellings | 24 |
+| Distinct non-blank raw gender spellings | 10 |
+| Blank gender values | 30 |
 
 These findings establish the baseline for the subsequent data-cleaning and validation tasks.
