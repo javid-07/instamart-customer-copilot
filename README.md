@@ -16,5 +16,3 @@ This project builds a customer intelligence and support copilot using synthetic 
 Expected generator output:
 
 `generated: customers=1200 products=40 orders_raw=13084 tickets=164`
-
-The full reproduction instructions will be completed after the remaining project scripts are implemented.
