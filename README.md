@@ -86,3 +86,33 @@ The raw customers, products, and orders datasets were inspected using pandas. Th
 | Blank gender values | 30 |
 
 These findings establish the baseline for the subsequent data-cleaning and validation tasks.
+
+### Task 3: Clean Orders
+
+The raw orders dataset was cleaned using pandas in the following order:
+
+1. Converted `order_ts` to datetime format.
+2. Removed exact duplicate rows.
+3. Sorted orders by timestamp and kept the latest record for each `order_id`.
+4. Converted `order_amount` to numeric values. Unparseable or missing amounts were filled using the formula:
+
+   `order_amount = round(price_inr * quantity * (1 - discount_pct / 100), 2)`
+
+5. Set negative `delivery_minutes` values to missing.
+6. Filled missing delivery times for completed orders using the median delivery time for the corresponding product category, calculated from completed orders with valid delivery times.
+7. Kept delivery times missing for cancelled orders because those orders were not delivered.
+
+#### Cleaning Results
+
+| Checkpoint | Expected Result | Actual Result |
+|---|---:|---:|
+| Total cleaned orders | 12,309 | 12,309 |
+| Completed orders | 11,110 | 11,110 |
+| Cancelled orders | 1,199 | 1,199 |
+| Pending orders | 0 | 0 |
+| Missing order amounts | 0 | 0 |
+| Completed orders with missing delivery time | 0 | 0 |
+| Cancelled orders with missing delivery time | 1,199 | 1,199 |
+| Total completed order amount | INR 2,998,668.80 | INR 2,998,668.80 |
+
+The cleaning results match the assignment's reference checkpoints.
