@@ -16,3 +16,28 @@ This project builds a customer intelligence and support copilot using synthetic 
 Expected generator output:
 
 `generated: customers=1200 products=40 orders_raw=13084 tickets=164`
+
+## Part A — Data Foundation
+
+### Task 2: Raw Data Audit
+
+The raw customers, products, and orders datasets were inspected using pandas. The audit reports each dataset's shape, column data types, missing-value counts, missing-value percentages, and exact duplicate rows.
+
+#### Raw Dataset Summary
+
+| Dataset | Rows | Columns | Exact Duplicate Rows |
+|---|---:|---:|---:|
+| Customers | 1,200 | 5 | 0 |
+| Products | 40 | 4 | 0 |
+| Orders | 13,084 | 9 | 119 |
+
+#### Key Audit Findings
+
+- **Orders:** 13,084 raw rows, 119 exact duplicate rows, 656 pending orders, and 12,309 distinct order IDs.
+- **Order amounts:** 120 entries could not be converted to numeric values.
+- **Delivery time:** 106 negative values and 2,541 blank or missing values.
+- **Customers:** 61 missing age values and 6 age values outside the 10–100 range.
+- **City:** 24 distinct raw city spellings were found.
+- **Gender:** 10 distinct non-blank raw spellings and 30 blank values were found.
+
+These findings establish the baseline for the subsequent data-cleaning and validation tasks.
