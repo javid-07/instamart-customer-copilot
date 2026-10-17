@@ -211,3 +211,13 @@ Seven SQL queries were saved in `sql/queries.sql` and executed against `data/ins
 The highest city/category revenue was Bengaluru / Electronics at INR 233,909.45. The top-spending customer in each city also matched the assignment reference results.
 
 **Ranking note:** When customers tie on total spend, `RANK()` assigns the same rank and may skip subsequent ranks, while `ROW_NUMBER()` assigns a unique sequential number to each row.
+
+#### Task :  Exploratory Analysis Findings
+
+The dataset contains synthetic Instamart completed-order transactions across six cities and five product categories. The 11,110 completed orders generated total revenue of INR 2,998,668.80.
+
+Order amounts are right-skewed: the mean is INR 269.91, the median is INR 135.00, and skewness is 4.61. The first and third quartiles are INR 64.80 and INR 297.00, respectively.
+
+Using the 1.5×IQR rule, the upper fence is INR 645.30. There are 897 upper outliers and no lower outliers. These high-value transactions may represent unusually large orders, but they are not necessarily errors.
+
+The strongest absolute correlation is between order amount and discount percentage (−0.095). Order amount and quantity have a smaller positive correlation (+0.087). Both relationships are weak, and correlation does not establish causation.

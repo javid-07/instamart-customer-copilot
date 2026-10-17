@@ -124,4 +124,4 @@ SELECT
         2
     ) AS cumulative_revenue
 FROM daily_revenue
-ORDER BY day;
+ORDER BY day;0
