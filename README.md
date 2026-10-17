@@ -80,7 +80,7 @@ Run these commands from a clean clone, in order, using Python 3.11 or newer.
 
    The seven SQL statements are stored in `sql/queries.sql` and were run against `data/instamart.db` using `pandas.read_sql_query` during verification.
 
-## Part A â€” Data Foundation: Clean, Store, Query
+## Part A : Data Foundation: Clean, Store, Query
 
 ### Task 1: Reproducible Setup
 
