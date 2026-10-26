@@ -323,3 +323,124 @@ Order amounts are right-skewed: the mean is INR 269.91, the median is INR 135.00
 Using the 1.5 × IQR rule, the lower fence is INR -283.50 and the upper fence is INR 645.30. There are no lower outliers and 897 upper outliers. These high-value transactions may represent unusually large orders, but they are not necessarily errors.
 
 The strongest absolute correlation is between order amount and discount percentage (approximately -0.095). Order amount and quantity have a smaller positive correlation (+0.087). Both relationships are weak; a correlation of this size does not establish causation.
+
+
+---
+
+## Part B: Customer Segmentation and Lapse Prediction
+
+### Task 1: RFM Analysis
+
+Built a Recency, Frequency, Monetary (RFM) table using completed orders.
+
+- Snapshot date: 2025-10-01
+- Customers with completed orders: 1,175
+- Median recency: 19 days
+- Recency range: 0–180 days
+- Mean frequency: 9.46 orders
+- Maximum frequency: 33 orders
+- Mean monetary value: INR 2,552.06
+- Maximum monetary value: INR 14,766.55
+
+Output: `outputs/rfm.csv`
+
+### Task 2: K-means Clustering
+
+Standardized RFM features and evaluated K-means for K = 2 through 8, using `random_state=42` and `n_init=10`.
+
+| K | Inertia | Silhouette |
+|---:|---:|---:|
+| 2 | 1820.8 | 0.465 |
+| 3 | 1268.2 | 0.445 |
+| 4 | 743.1 | 0.526 |
+| 5 | 617.4 | 0.480 |
+| 6 | 503.2 | 0.482 |
+| 7 | 408.5 | 0.416 |
+| 8 | 366.5 | 0.412 |
+
+K = 4 was selected because it had the highest silhouette score among the tested values.
+
+Output: `outputs/kmeans_evaluation.csv`
+
+### Task 3: Customer Segment Profiles
+
+| Segment | Customers | Mean Recency (days) | Mean Frequency | Mean Monetary (INR) |
+|---|---:|---:|---:|---:|
+| 0 | 436 | 28.86 | 3.77 | 1,057.62 |
+| 1 | 138 | 24.12 | 6.77 | 7,129.70 |
+| 2 | 419 | 8.77 | 19.40 | 3,410.02 |
+| 3 | 182 | 109.04 | 2.20 | 685.99 |
+
+Business interpretation:
+
+- Segment 0: Occasional Shoppers
+- Segment 1: Premium Spenders
+- Segment 2: Loyal Frequent Buyers
+- Segment 3: At-Risk Inactive Customers
+
+Segment 1 was selected as the Premium segment because it had the highest mean monetary value. It contains 138 customers.
+
+### Task 4: PCA
+
+Principal Component Analysis was performed on standardized RFM features.
+
+- PC1 explained variance: 0.634
+- PC2 explained variance: 0.218
+- Total explained variance: 0.852 (85.2%)
+
+Output: `outputs/customer_segments.csv`
+
+### Task 5: Lapse Cohort and Labels
+
+The lapse cohort included customers with at least one completed order before 2025-09-01. A customer was labelled as lapsed if they had no completed order from 2025-09-01 through 2025-09-30.
+
+- Cohort size: 1,156
+- Lapsed customers: 443
+- Non-lapsed customers: 713
+- Lapse rate: 38.32%
+
+Output: `outputs/lapse_dataset.csv`
+
+### Task 6: Leakage-Free Features
+
+Customer features were built using orders before 2025-09-01 only. September activity was used for the target label, not as a model feature.
+
+The dataset contains 1,156 customers, 11 features, and no missing values.
+
+Features include recency, frequency, monetary value, average discount, average delivery time, cancellation rate, favourite category, city, age, gender, and customer tenure.
+
+Output: `outputs/lapse_features.csv`
+
+### Task 7: Lapse Prediction Models
+
+A stratified train/test split was used with `test_size=0.2` and `random_state=42`.
+
+| Metric | Logistic Regression | Random Forest |
+|---|---:|---:|
+| Best CV F1 | 0.639 | 0.672 |
+| Test accuracy | 0.763 | 0.763 |
+| Lapsed-class precision | 0.65 | 0.67 |
+| Lapsed-class recall | 0.81 | 0.74 |
+| Lapsed-class F1 | 0.724 | 0.706 |
+
+Logistic Regression was selected based on its higher test-set F1-score. The selected model was saved and reloaded successfully, and the reloaded predictions matched the original predictions.
+
+Class-balancing experiment:
+
+| Metric | Original Training | Balanced Training |
+|---|---:|---:|
+| Precision | 0.655 | 0.587 |
+| Recall | 0.809 | 0.910 |
+| F1-score | 0.724 | 0.714 |
+
+Balancing improved recall but reduced precision. The choice depends on the cost of missed at-risk customers versus unnecessary retention offers.
+
+Random Forest feature importance ranked frequency first (0.401), followed by monetary value (0.257), recency (0.083), cancellation rate (0.083), and average discount (0.055).
+
+### Task 8: Retention List
+
+The selected Logistic Regression model scored the 1,156 customers in the lapse cohort. Customers were ranked by predicted lapse probability, highest risk first.
+
+Output: `outputs/retention_list.csv`
+
+The retention list supports prioritization of re-engagement campaigns. Predicted probabilities are estimates and do not guarantee future customer behaviour.
