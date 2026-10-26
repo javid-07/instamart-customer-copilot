@@ -444,3 +444,16 @@ The selected Logistic Regression model scored the 1,156 customers in the lapse c
 Output: `outputs/retention_list.csv`
 
 The retention list supports prioritization of re-engagement campaigns. Predicted probabilities are estimates and do not guarantee future customer behaviour.
+
+### Reproducibility and Leakage Checks
+
+- The RFM calculations use completed orders only, with the snapshot set to `2025-10-01 00:00:00`.
+- K-means evaluation uses `StandardScaler` and `KMeans(n_init=10, random_state=42)` for each K from 2 through 8. K=8 has lower inertia than K=2 because increasing the number of clusters reduces within-cluster distances; this alone does not identify the best K. The final choice considers the elbow, silhouette score, and whether the resulting segments are useful for business decisions.
+- The lapse cohort is defined using completed orders before `2025-09-01`. No orders dated `2025-09-01` onwards are used to build model features, and the Part B segment labels are not used as model features.
+- The train/test split uses `test_size=0.2`, `stratify=y`, and `random_state=42`. Preprocessing and resampling are fitted/applied to training data only; the test set remains unchanged for evaluation. The encoder and scaler do not learn from test rows.
+- Model selection uses cross-validation on the training set. The final selected Logistic Regression model achieved a lapsed-class test F1 of `0.724`, above the required minimum of `0.55`.
+- The retention list contains the top 10 highest-scored Premium customers within the test set. In this dataset, 2 of those 10 customers were actually lapsed.
+
+### Limitations and Next Steps
+
+The data is synthetic, so model performance and segment behaviour may not reflect real customer behaviour. Model probabilities are estimates, not guarantees. The Premium flag is based on whole-window RFM segmentation, which includes the September period used to define lapse. Therefore, the retention list is illustrative and is not a leakage-free evaluation of retention performance. The model's predictive features themselves use only pre-cutoff data.
