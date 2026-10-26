@@ -573,6 +573,30 @@ python src/train_lapse_model.py
 
 Logistic Regression was selected because it achieved the higher held-out test F1-score of 0.724, exceeding the required minimum of 0.55.
 
+**Feature Importance — Random Forest**
+
+The five most important features identified by the Random Forest model are:
+
+| Feature | Importance | Business Interpretation |
+|---|---:|---|
+| Frequency | 0.400839 | Historical purchase frequency is the strongest feature for distinguishing lapsed customers. |
+| Monetary | 0.257073 | Total historical spending contributes substantially to lapse prediction. |
+| Recency | 0.088255 | Time since the last completed order provides additional information about customer inactivity. |
+| Cancellation Rate | 0.082872 | Customers' historical cancellation behaviour helps the model distinguish purchasing patterns. |
+| Average Discount Percentage | 0.054833 | Historical discount usage contributes to predicting lapse risk. |
+
+**Logistic Regression — Coefficient Interpretation**
+
+The following are the three largest coefficients by absolute magnitude among the reported coefficients:
+
+| Feature | Coefficient | Interpretation |
+|---|---:|---|
+| Frequency | -1.281146 | Higher historical purchase frequency is associated with lower predicted lapse odds, holding other features constant. |
+| Favourite Category: Electronics | -0.378188 | This encoded category is associated with lower predicted lapse odds relative to the reference category, holding other features constant. |
+| Favourite Category: Snacks | -0.202604 | This encoded category is associated with lower predicted lapse odds relative to the reference category, holding other features constant. |
+
+The negative coefficients indicate lower predicted log-odds of lapse, conditional on the other model features. These are model associations, not evidence of causation.
+
 **Reproduce:**
 
 ```bash
