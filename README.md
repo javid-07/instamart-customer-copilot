@@ -447,11 +447,13 @@ These coefficients describe model associations and do not establish causation. C
 
 ### Task 8: Retention List
 
-The selected Logistic Regression model scored the 1,156 customers in the lapse cohort. Customers were ranked by predicted lapse probability, highest risk first.
+The selected Logistic Regression model scored Premium customers from the held-out test set and ranked them by predicted lapse probability. The test set contained 29 Premium customers; the 10 highest-risk customers were exported.
 
 Output: `outputs/retention_list.csv`
 
-The retention list supports prioritization of re-engagement campaigns. Predicted probabilities are estimates and do not guarantee future customer behaviour.
+The CSV contains `customer_id`, `lapse_probability`, and `actually_lapsed`. In this run, 2 of the top 10 customers were actually lapsed.
+
+The retention list supports prioritization of re-engagement campaigns. Predicted probabilities are estimates and do not guarantee future customer behaviour. The Premium flag is based on whole-window RFM segmentation, which includes the September period used to define lapse. Therefore, this retention list is illustrative and is not a leakage-free evaluation of retention performance.
 
 ### Reproducibility and Leakage Checks
 
@@ -465,3 +467,5 @@ The retention list supports prioritization of re-engagement campaigns. Predicted
 ### Limitations and Next Steps
 
 The data is synthetic, so model performance and segment behaviour may not reflect real customer behaviour. Model probabilities are estimates, not guarantees. The Premium flag is based on whole-window RFM segmentation, which includes the September period used to define lapse. Therefore, the retention list is illustrative and is not a leakage-free evaluation of retention performance. The model's predictive features themselves use only pre-cutoff data.
+
+Segment names are assigned using profile-based heuristics for monetary value, frequency, and recency. These labels are descriptive interpretations of the current clusters, not independently validated customer types.
