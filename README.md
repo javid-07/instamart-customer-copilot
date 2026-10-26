@@ -437,6 +437,14 @@ Balancing improved recall but reduced precision. The choice depends on the cost 
 
 Random Forest feature importance ranked frequency first (0.401), followed by monetary value (0.257), recency (0.083), cancellation rate (0.083), and average discount (0.055).
 
+#### Logistic Regression Coefficient Interpretation
+
+- **Frequency (−1.281):** Higher completed-order frequency is associated with lower predicted lapse risk, holding other features constant.
+- **Favourite category — Electronics (−0.378):** Relative to the reference category, an Electronics preference is associated with lower predicted lapse risk.
+- **Favourite category — Snacks (−0.203):** Relative to the reference category, a Snacks preference is associated with lower predicted lapse risk.
+
+These coefficients describe model associations and do not establish causation. Categorical coefficients are relative to the encoder's dropped reference category.
+
 ### Task 8: Retention List
 
 The selected Logistic Regression model scored the 1,156 customers in the lapse cohort. Customers were ranked by predicted lapse probability, highest risk first.
