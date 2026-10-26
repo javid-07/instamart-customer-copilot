@@ -371,14 +371,14 @@ Output: `outputs/kmeans_evaluation.csv`
 | 2 | 419 | 8.77 | 19.40 | 3,410.02 |
 | 3 | 182 | 109.04 | 2.20 | 685.99 |
 
-Business interpretation:
+**Business interpretation and recommended actions**
 
-- Segment 0: Occasional Shoppers
-- Segment 1: Premium Spenders
-- Segment 2: Loyal Frequent Buyers
-- Segment 3: At-Risk Inactive Customers
+- **Segment 0 — Occasional Shoppers (436 customers):** Mean frequency is 3.77 and mean monetary value is INR 1,057.62. **Action:** Send personalised recommendations and occasional-order incentives to encourage repeat purchases.
+- **Segment 1 — Premium Spenders (138 customers):** This segment has the highest mean monetary value (INR 7,129.70), so it is marked as Premium. **Action:** Offer loyalty rewards, early access to promotions, and personalised premium recommendations.
+- **Segment 2 — Loyal Frequent Buyers (419 customers):** Mean frequency is 19.40 and mean recency is 8.77 days. **Action:** Encourage continued loyalty with reward milestones and relevant cross-sell recommendations.
+- **Segment 3 — At-Risk Inactive Customers (182 customers):** Mean recency is 109.04 days and mean monetary value is INR 685.99. **Action:** Test a targeted win-back campaign with a relevant incentive.
 
-Segment 1 was selected as the Premium segment because it had the highest mean monetary value. It contains 138 customers.
+Cluster IDs are arbitrary labels, not ranks or an ordered scale. Their numeric values do not imply that one segment is better or worse than another. Segment names and actions are interpretations of the observed profiles.
 
 ### Task 4: PCA
 
@@ -409,11 +409,31 @@ The dataset contains 1,156 customers, 11 features, and no missing values.
 
 Features include recency, frequency, monetary value, average discount, average delivery time, cancellation rate, favourite category, city, age, gender, and customer tenure.
 
+#### Training-Only Preprocessing Verification
+
+The frequency mean learned by the training-set scaler was 8.1158, compared with the full-cohort frequency mean of 8.0285. These values differ because the scaler is fitted on the 924 training rows only, while the full-cohort mean includes all 1,156 customers, including the 232 held-out test rows. This keeps preprocessing independent of the test set.
+
 Output: `outputs/lapse_features.csv`
 
 ### Task 7: Lapse Prediction Models
 
 A stratified train/test split was used with `test_size=0.2` and `random_state=42`.
+
+#### Baseline Comparison
+
+The baseline classifier predicted every test-set customer as non-lapsed.
+
+- Test rows: 232
+- Baseline accuracy: 0.616
+- Baseline lapsed-class F1: 0.000
+- Baseline confusion matrix (rows = actual, columns = predicted):
+
+| | Predicted non-lapsed (0) | Predicted lapsed (1) |
+|---|---:|---:|
+| Actual non-lapsed (0) | 143 | 0 |
+| Actual lapsed (1) | 89 | 0 |
+
+The baseline achieved 61.6% accuracy but failed to identify any lapsed customers. Therefore, accuracy alone is insufficient for this imbalanced classification task; the lapsed-class F1-score and recall are important evaluation metrics.
 
 | Metric | Logistic Regression | Random Forest |
 |---|---:|---:|
