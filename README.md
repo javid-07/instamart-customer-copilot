@@ -331,24 +331,51 @@ The strongest absolute correlation is between order amount and discount percenta
 
 ### Task 1: RFM Analysis
 
-Built a Recency, Frequency, Monetary (RFM) table using completed orders.
+**Objective:** Analyse customer purchasing behaviour using Recency, Frequency, and Monetary (RFM) metrics.
 
-- Snapshot date: 2025-10-01
-- Customers with completed orders: 1,175
-- Median recency: 19 days
-- Recency range: 0–180 days
-- Mean frequency: 9.46 orders
-- Maximum frequency: 33 orders
-- Mean monetary value: INR 2,552.06
-- Maximum monetary value: INR 14,766.55
+**Methodology:**
+- Used `2025-10-01` as the snapshot date.
+- Considered completed orders for RFM calculations.
+- Recency measures the number of days since the latest completed order.
+- Frequency measures the number of unique completed orders per customer.
+- Monetary represents the total order amount from completed orders.
+- Aggregated the metrics at customer level.
 
-Output: `outputs/rfm.csv`
+**Results:**
 
-### Task 2: K-means Clustering
+| Metric | Value |
+|---|---:|
+| Customers analysed | 1,175 |
+| Median recency | 19 days |
+| Minimum recency | 0 days |
+| Maximum recency | 180 days |
+| Average frequency | 9.46 orders |
+| Maximum frequency | 33 orders |
+| Average monetary value | ₹2,552.06 |
+| Maximum monetary value | ₹14,766.55 |
 
-Standardized RFM features and evaluated K-means for K = 2 through 8, using `random_state=42` and `n_init=10`.
+**Output:** `outputs/rfm.csv`
 
-| K | Inertia | Silhouette |
+**Reproduce:**
+
+```bash
+python src/build_rfm.py
+```
+
+### Task 2: K-Means Clustering
+
+**Objective:** Group customers with similar purchasing behaviour using K-Means clustering.
+
+**Methodology:**
+- Used Recency, Frequency, and Monetary as clustering features.
+- Standardised the features using `StandardScaler`.
+- Evaluated K values from 2 to 8.
+- Used `n_init=10` and `random_state=42`.
+- Compared inertia and silhouette scores to assess clustering quality.
+
+**Results:**
+
+| K | Inertia | Silhouette Score |
 |---:|---:|---:|
 | 2 | 1820.8 | 0.465 |
 | 3 | 1268.2 | 0.445 |
@@ -358,134 +385,279 @@ Standardized RFM features and evaluated K-means for K = 2 through 8, using `rand
 | 7 | 408.5 | 0.416 |
 | 8 | 366.5 | 0.412 |
 
-K = 4 was selected because it had the highest silhouette score among the tested values.
+K=4 was selected because it achieved the highest silhouette score among the tested values. Inertia decreases as K increases, so inertia alone was not used to select the final cluster count.
 
-Output: `outputs/kmeans_evaluation.csv`
+**Output:** `outputs/kmeans_evaluation.csv`
 
-### Task 3: Customer Segment Profiles
+**Reproduce:**
 
-| Segment | Customers | Mean Recency (days) | Mean Frequency | Mean Monetary (INR) |
-|---|---:|---:|---:|---:|
-| 0 | 436 | 28.86 | 3.77 | 1,057.62 |
-| 1 | 138 | 24.12 | 6.77 | 7,129.70 |
-| 2 | 419 | 8.77 | 19.40 | 3,410.02 |
-| 3 | 182 | 109.04 | 2.20 | 685.99 |
+```bash
+python src/cluster_customers.py
+```
 
-**Business interpretation and recommended actions**
+### Task 3: Segment Profiling and Premium Identification
 
-- **Segment 0 — Occasional Shoppers (436 customers):** Mean frequency is 3.77 and mean monetary value is INR 1,057.62. **Action:** Send personalised recommendations and occasional-order incentives to encourage repeat purchases.
-- **Segment 1 — Premium Spenders (138 customers):** This segment has the highest mean monetary value (INR 7,129.70), so it is marked as Premium. **Action:** Offer loyalty rewards, early access to promotions, and personalised premium recommendations.
-- **Segment 2 — Loyal Frequent Buyers (419 customers):** Mean frequency is 19.40 and mean recency is 8.77 days. **Action:** Encourage continued loyalty with reward milestones and relevant cross-sell recommendations.
-- **Segment 3 — At-Risk Inactive Customers (182 customers):** Mean recency is 109.04 days and mean monetary value is INR 685.99. **Action:** Test a targeted win-back campaign with a relevant incentive.
+**Objective:** Describe customer segments and identify the segment with the highest mean monetary value.
 
-Cluster IDs are arbitrary labels, not ranks or an ordered scale. Their numeric values do not imply that one segment is better or worse than another. Segment names and actions are interpretations of the observed profiles.
+**Methodology:**
+- Applied K-Means with K=4 using standardised RFM features.
+- Used `random_state=42` and `n_init=10`.
+- Calculated segment sizes and average RFM metrics.
+- Used PCA to evaluate how much variance the first two principal components explain.
+- Assigned descriptive segment names based on customer profiles.
+- Set the Premium flag for customers belonging to the segment with the highest mean monetary value.
 
-### Task 4: PCA
+**Segment profiles:**
 
-Principal Component Analysis was performed on standardized RFM features.
+| Segment ID | Segment Name | Customers | Mean Recency (days) | Mean Frequency | Mean Monetary (₹) |
+|---:|---|---:|---:|---:|---:|
+| 0 | Occasional Shoppers | 436 | 28.86 | 3.77 | 1,057.62 |
+| 1 | Premium Spenders | 138 | 24.12 | 6.77 | 7,129.70 |
+| 2 | Loyal Frequent Buyers | 419 | 8.77 | 19.40 | 3,410.02 |
+| 3 | At-Risk Inactive Customers | 182 | 109.04 | 2.20 | 685.99 |
 
-- PC1 explained variance: 0.634
-- PC2 explained variance: 0.218
-- Total explained variance: 0.852 (85.2%)
+Cluster IDs are arbitrary labels; their numeric order does not represent customer value or loyalty.
 
-Output: `outputs/customer_segments.csv`
+**PCA results:**
+- First principal component explained variance: 0.634.
+- Second principal component explained variance: 0.218.
+- Combined explained variance: 0.852 (85.2%).
 
-### Task 5: Lapse Cohort and Labels
+**Business interpretation:**
+- **Occasional Shoppers:** Encourage repeat purchases through relevant offers.
+- **Premium Spenders:** Prioritise personalised rewards and retention campaigns.
+- **Loyal Frequent Buyers:** Support continued engagement with loyalty benefits.
+- **At-Risk Inactive Customers:** Consider targeted reactivation campaigns.
 
-The lapse cohort included customers with at least one completed order before 2025-09-01. A customer was labelled as lapsed if they had no completed order from 2025-09-01 through 2025-09-30.
+These are proposed actions based on the segment profiles; campaign effectiveness has not been measured.
 
-- Cohort size: 1,156
-- Lapsed customers: 443
-- Non-lapsed customers: 713
-- Lapse rate: 38.32%
+**Output:** `outputs/customer_segments.csv`
 
-Output: `outputs/lapse_dataset.csv`
+The file contains `customer_id`, `recency`, `frequency`, `monetary`, `segment_id`, `segment_name`, and `is_premium`.
 
-### Task 6: Leakage-Free Features
+The Premium flag is true for exactly 138 customers in Segment 1, which has the highest mean monetary value.
 
-Customer features were built using orders before 2025-09-01 only. September activity was used for the target label, not as a model feature.
+**Reproduce:**
 
-The dataset contains 1,156 customers, 11 features, and no missing values.
+```bash
+python src/save_segments.py
+```
 
-Features include recency, frequency, monetary value, average discount, average delivery time, cancellation rate, favourite category, city, age, gender, and customer tenure.
+### Task 4: Lapse Cohort and Label Construction
 
-#### Training-Only Preprocessing Verification
+**Objective:** Identify customers who became lapsed during the observation period.
 
-The frequency mean learned by the training-set scaler was 8.1158, compared with the full-cohort frequency mean of 8.0285. These values differ because the scaler is fitted on the 924 training rows only, while the full-cohort mean includes all 1,156 customers, including the 232 held-out test rows. This keeps preprocessing independent of the test set.
+**Methodology:**
+- Used completed orders before `2025-09-01` to define the eligible customer cohort.
+- Defined the observation period as `2025-09-01` through `2025-09-30`.
+- Labelled a customer as lapsed if they had no completed order during the observation period.
+- Labelled a customer as non-lapsed if they had at least one completed order during the period.
 
-Output: `outputs/lapse_features.csv`
+**Results:**
 
-### Task 7: Lapse Prediction Models
+| Metric | Value |
+|---|---:|
+| Eligible customers | 1,156 |
+| Lapsed customers | 443 |
+| Non-lapsed customers | 713 |
+| Lapse rate | 38.32% |
+| Training rows | 924 |
+| Test rows | 232 |
 
-A stratified train/test split was used with `test_size=0.2` and `random_state=42`.
+The train/test split is stratified to preserve the target-class distribution.
 
-#### Baseline Comparison
+**Reproduce:**
 
-The baseline classifier predicted every test-set customer as non-lapsed.
+```bash
+python src/build_lapse_dataset.py
+```
 
-- Test rows: 232
-- Baseline accuracy: 0.616
-- Baseline lapsed-class F1: 0.000
-- Baseline confusion matrix (rows = actual, columns = predicted):
+### Task 5: Lapse Prediction Feature Engineering
 
-| | Predicted non-lapsed (0) | Predicted lapsed (1) |
-|---|---:|---:|
-| Actual non-lapsed (0) | 143 | 0 |
-| Actual lapsed (1) | 89 | 0 |
+**Objective:** Create a customer-level feature dataset for lapse prediction while preventing future-data leakage.
 
-The baseline achieved 61.6% accuracy but failed to identify any lapsed customers. Therefore, accuracy alone is insufficient for this imbalanced classification task; the lapsed-class F1-score and recall are important evaluation metrics.
+**Methodology:**
+- Restricted order-derived predictive features to orders strictly before `2025-09-01`.
+- Created historical purchasing features including recency, frequency, monetary value, average discount percentage, and average delivery time.
+- Calculated cancellation rate from historical order statuses.
+- Derived favourite category from completed historical orders.
+- Included customer attributes such as city, age, gender, and tenure.
+- Kept the target label separate from the model input features.
+- Checked for duplicate customer IDs and missing feature values.
+
+**Validation results:**
+- Duplicate customer IDs: 0.
+- Missing feature values: 0.
+- Negative tenure values: 0.
+- Minimum tenure: 154 days.
+- Maximum tenure: 609 days.
+
+**Leakage prevention:**
+- No order data dated `2025-09-01` or later was used to construct predictive features.
+- Segment IDs and segment names from Task 3 were not used as predictive features.
+- Scaling and categorical encoding were fitted using training data only, through the model pipeline.
+- The training scaler's frequency mean was 8.1158, while the full-cohort frequency mean was 8.0285. This difference is expected because the scaler was fitted on the training subset.
+
+**Reproduce:**
+
+```bash
+python src/build_lapse_features.py
+```
+
+### Task 6: Baseline Evaluation
+
+**Objective:** Establish a baseline for evaluating lapse prediction models.
+
+**Methodology:**
+- Split the data into 924 training rows and 232 test rows.
+- Used stratified splitting with `random_state=42`.
+- Created a majority-class baseline that predicts every customer as non-lapsed.
+- Evaluated accuracy, lapsed-class F1-score, and the confusion matrix.
+- Verified that preprocessing transformations were fitted on training data and then applied to test data.
+
+**Results:**
+
+| Metric | Baseline |
+|---|---:|
+| Test rows | 232 |
+| Accuracy | 0.616 |
+| Lapsed-class F1-score | 0.000 |
+| True negatives | 143 |
+| False positives | 0 |
+| False negatives | 89 |
+| True positives | 0 |
+
+Confusion matrix order: `[[TN, FP], [FN, TP]]`.
+
+The baseline does not identify any lapsed customers. Although it achieves 0.616 accuracy, its lapsed-class F1-score is zero, making it unsuitable for a retention workflow.
+
+**Preprocessing verification:**
+
+| Check | Result |
+|---|---:|
+| Transformed training shape | 924 × 19 |
+| Transformed test shape | 232 × 19 |
+| Training scaler frequency mean | 8.1158 |
+| Full-cohort frequency mean | 8.0285 |
+| Missing feature values | 0 |
+
+**Output:** `outputs/lapse_features.csv`
+
+**Reproduce:**
+
+```bash
+python src/train_lapse_model.py
+```
+
+### Task 7: Model Tuning and Comparison
+
+**Objective:** Tune Logistic Regression and Random Forest and compare their lapse prediction performance.
+
+**Methodology:**
+- Used five-fold cross-validation with F1-score as the tuning metric.
+- Logistic Regression grid: `C = [0.01, 0.1, 1, 10, 100]`.
+- Random Forest grid: `max_depth = [3, 5, 8]`, `min_samples_leaf = [5, 10, 20]`, and `n_estimators=100`.
+- Used `random_state=42` for Random Forest.
+- Applied `StandardScaler` to numeric features and `OneHotEncoder(drop="first", handle_unknown="ignore")` to categorical features.
+- Evaluated precision, recall, and F1-score for the lapsed (positive) class.
+
+**Results:**
 
 | Metric | Logistic Regression | Random Forest |
 |---|---:|---:|
-| Best CV F1 | 0.639 | 0.672 |
+| Best cross-validation F1 | 0.639 | 0.672 |
 | Test accuracy | 0.763 | 0.763 |
 | Lapsed-class precision | 0.65 | 0.67 |
 | Lapsed-class recall | 0.81 | 0.74 |
-| Lapsed-class F1 | 0.724 | 0.706 |
+| Lapsed-class F1-score | 0.724 | 0.706 |
 
-Logistic Regression was selected based on its higher test-set F1-score. The selected model was saved and reloaded successfully, and the reloaded predictions matched the original predictions.
+Logistic Regression was selected because it achieved the higher held-out test F1-score of 0.724, exceeding the required minimum of 0.55.
 
-Class-balancing experiment:
+**Reproduce:**
 
-| Metric | Original Training | Balanced Training |
+```bash
+python src/tune_lapse_models.py
+```
+
+### Task 8: Class-Balance Experiment
+
+**Objective:** Evaluate the effect of class balancing on lapse prediction.
+
+**Results:**
+
+| Metric | Original Training Data | Balanced Experiment |
 |---|---:|---:|
-| Precision | 0.655 | 0.587 |
-| Recall | 0.809 | 0.910 |
-| F1-score | 0.724 | 0.714 |
+| Lapsed-class precision | 0.655 | 0.587 |
+| Lapsed-class recall | 0.809 | 0.910 |
+| Lapsed-class F1-score | 0.724 | 0.714 |
 
-Balancing improved recall but reduced precision. The choice depends on the cost of missed at-risk customers versus unnecessary retention offers.
+The balanced experiment increased recall but reduced precision and F1-score. This shows a trade-off: more lapsed customers were identified, but the proportion of correctly identified customers decreased.
 
-Random Forest feature importance ranked frequency first (0.401), followed by monetary value (0.257), recency (0.083), cancellation rate (0.083), and average discount (0.055).
+**Reproduce:**
 
-#### Logistic Regression Coefficient Interpretation
+```bash
+python src/balance_experiment.py
+```
 
-- **Frequency (−1.281):** Higher completed-order frequency is associated with lower predicted lapse risk, holding other features constant.
-- **Favourite category — Electronics (−0.378):** Relative to the reference category, an Electronics preference is associated with lower predicted lapse risk.
-- **Favourite category — Snacks (−0.203):** Relative to the reference category, a Snacks preference is associated with lower predicted lapse risk.
+### Task 9: Save and Validate the Final Model
 
-These coefficients describe model associations and do not establish causation. Categorical coefficients are relative to the encoder's dropped reference category.
+**Objective:** Save the selected model pipeline and confirm that the saved model produces consistent predictions.
 
-### Task 8: Retention List
+**Methodology:**
+- Refit the selected model pipeline using the defined training procedure.
+- Saved the fitted pipeline as a Joblib artifact.
+- Reloaded the saved model and compared its predictions with those produced before saving.
 
-The selected Logistic Regression model scored Premium customers from the held-out test set and ranked them by predicted lapse probability. The test set contained 29 Premium customers; the 10 highest-risk customers were exported.
+**Results:**
+- Saved model: `outputs/lapse_model.joblib`.
+- Test F1-score: 0.724.
+- Reloaded predictions matched the original predictions: True.
 
-Output: `outputs/retention_list.csv`
+**Reproduce:**
 
-The CSV contains `customer_id`, `lapse_probability`, and `actually_lapsed`. In this run, 2 of the top 10 customers were actually lapsed.
+```bash
+python src/save_lapse_model.py
+```
 
-The retention list supports prioritization of re-engagement campaigns. Predicted probabilities are estimates and do not guarantee future customer behaviour. The Premium flag is based on whole-window RFM segmentation, which includes the September period used to define lapse. Therefore, this retention list is illustrative and is not a leakage-free evaluation of retention performance.
+### Task 10: Retention List Generation
 
-### Reproducibility and Leakage Checks
+**Objective:** Create an illustrative list of Premium customers ranked by predicted lapse probability.
 
-- The RFM calculations use completed orders only, with the snapshot set to `2025-10-01 00:00:00`.
-- K-means evaluation uses `StandardScaler` and `KMeans(n_init=10, random_state=42)` for each K from 2 through 8. K=8 has lower inertia than K=2 because increasing the number of clusters reduces within-cluster distances; this alone does not identify the best K. The final choice considers the elbow, silhouette score, and whether the resulting segments are useful for business decisions.
-- The lapse cohort is defined using completed orders before `2025-09-01`. No orders dated `2025-09-01` onwards are used to build model features, and the Part B segment labels are not used as model features.
-- The train/test split uses `test_size=0.2`, `stratify=y`, and `random_state=42`. Preprocessing and resampling are fitted/applied to training data only; the test set remains unchanged for evaluation. The encoder and scaler do not learn from test rows.
-- Model selection uses cross-validation on the training set. The final selected Logistic Regression model achieved a lapsed-class test F1 of `0.724`, above the required minimum of `0.55`.
-- The retention list contains the top 10 highest-scored Premium customers within the test set. In this dataset, 2 of those 10 customers were actually lapsed.
+**Methodology:**
+- Identified Premium customers in the held-out test set.
+- Ranked customers by predicted lapse probability.
+- Exported the top 10 customers for illustrative retention outreach.
 
-### Limitations and Next Steps
+**Results:**
+- Premium customers in the test set: 29.
+- Customers included in the retention list: 10.
+- Customers among the top 10 who were actually labelled as lapsed: 2.
 
-The data is synthetic, so model performance and segment behaviour may not reflect real customer behaviour. Model probabilities are estimates, not guarantees. The Premium flag is based on whole-window RFM segmentation, which includes the September period used to define lapse. Therefore, the retention list is illustrative and is not a leakage-free evaluation of retention performance. The model's predictive features themselves use only pre-cutoff data.
+**Output:** `outputs/retention_list.csv`
 
-Segment names are assigned using profile-based heuristics for monetary value, frequency, and recency. These labels are descriptive interpretations of the current clusters, not independently validated customer types.
+The file contains `customer_id`, `lapse_probability`, and `actually_lapsed`.
+
+**Reproduce:**
+
+```bash
+python src/create_retention_list.py
+```
+
+### Part B: Outputs Summary
+
+| Output | Purpose |
+|---|---|
+| `outputs/rfm.csv` | Customer-level RFM metrics |
+| `outputs/kmeans_evaluation.csv` | K-Means inertia and silhouette scores |
+| `outputs/customer_segments.csv` | Segment assignments and Premium flags |
+| `outputs/lapse_features.csv` | Model features and lapse labels |
+| `outputs/lapse_model.joblib` | Saved lapse prediction pipeline |
+| `outputs/retention_list.csv` | Ranked illustrative retention list |
+
+### Part B: Limitations
+
+- Segment names are descriptive interpretations of observed customer profiles and have not been independently validated.
+- The Premium flag is derived from whole-window RFM segmentation, which includes activity from the September observation period. Therefore, the Premium-based retention list is illustrative and must not be treated as a leakage-free model evaluation.
+- Predictive model features are restricted to information available before `2025-09-01`.
+- The model metrics come from a single stratified hold-out split; performance may vary on other datasets or time periods.
+- Retention recommendations have not been validated through a live campaign or controlled experiment.
