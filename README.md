@@ -716,21 +716,19 @@ The script includes assertions to verify the ticket count, original file order, 
 
 ```powershell
 python .\src\triage_tickets.py
+```
 
 ### Task 2: PII Redaction
 
 **Implementation:** `redact_pii()` in `src/triage_tickets.py`
 
-Before ticket text is used by subsequent pipeline stages, the redaction
-function applies the required regular expressions in this exact order:
+Before ticket text is used by subsequent pipeline stages, the redaction function applies the required regular expressions in this exact order:
 
 1. Email addresses matching `[\w.+-]+@[\w-]+\.[\w.]+` are replaced with `[EMAIL]`.
 2. Phone numbers matching `\b[6-9]\d{9}\b` are replaced with `[PHONE]`.
 3. Order IDs matching `ORD-\d{6}` are replaced with `[ORDER_ID]`.
 
-The implementation uses `re.subn()` to replace matches and count the
-number of replacements. Redacted text and per-ticket redaction counts
-are stored by `prepare_tickets()`.
+The implementation uses `re.subn()` to replace matches and count the number of replacements. Redacted text and per-ticket redaction counts are stored by `prepare_tickets()`.
 
 **Verified redaction counts across all 164 tickets:**
 
@@ -742,14 +740,15 @@ are stored by `prepare_tickets()`.
 | **Total** | | **278** |
 
 **Verification results:**
+
 - All expected redaction counts matched.
 - PII remaining in prepared ticket text: 0.
 - The script prints redaction counts and asserts the expected totals.
-- The user-message helper returns a message whose content contains only
-  the supplied redacted ticket text.
-- Task 1 guardrail counts remain correct: 4 empty, 4 long, 156 eligible.
+- The user-message helper returns a message whose content contains only the supplied redacted ticket text.
+- Task 1 guardrail counts remain correct: 4 empty, 4 long, and 156 eligible.
 
 **Reproduce:**
 
 ```powershell
 python .\src\triage_tickets.py
+```
