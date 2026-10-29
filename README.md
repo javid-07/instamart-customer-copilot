@@ -752,3 +752,27 @@ The implementation uses `re.subn()` to replace matches and count the number of r
 ```powershell
 python .\src\triage_tickets.py
 ```
+
+### Task 3: Two Prompts
+
+Implemented two system prompts in `src/triage_tickets.py` for support ticket classification.
+
+**Zero-shot prompt**
+- Uses the `CLASSIFY` instruction.
+- Defines the four allowed categories: `billing`, `delivery`, `technical`, and `fraud`.
+- Requires a JSON-only response in the format `{"category": "...", "reason": "..."}`.
+- Does not contain an `EXAMPLES:` section.
+
+**Few-shot prompt**
+- Uses the same classification categories and JSON response format.
+- Includes an `EXAMPLES:` section with three labelled examples covering billing, delivery, and fraud.
+
+**Validation**
+
+Run the prompt validation test from the repository root:
+
+```powershell
+python .\test_task3.py
+```
+
+The test checks the required classification instruction, categories, JSON format, zero-shot example restriction, and few-shot examples, including fraud.

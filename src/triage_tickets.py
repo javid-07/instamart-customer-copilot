@@ -10,6 +10,34 @@ import mock_llm
 TICKETS_PATH = ROOT / "data" / "raw" / "tickets.csv"
 MAX_INPUT_TOKENS = 400
 
+ZERO_SHOT_PROMPT = """
+CLASSIFY the customer support ticket into exactly one of these categories:
+billing, delivery, technical, fraud.
+
+Return a JSON-only reply in this exact form:
+{"category": "...", "reason": "..."}
+
+Do not include markdown, code fences, or any text outside the JSON object.
+The category must be one of the four allowed categories.
+The reason must briefly explain the classification.
+""".strip()
+
+FEW_SHOT_PROMPT = """
+CLASSIFY the customer support ticket into exactly one of these categories:
+billing, delivery, technical, fraud.
+
+Return a JSON-only reply in this exact form:
+{"category": "...", "reason": "..."}
+
+Do not include markdown, code fences, or any text outside the JSON object.
+The category must be one of the four allowed categories.
+
+EXAMPLES:
+Example 1 (billing): {"category": "billing", "reason": "The customer was charged twice for one order."}
+Example 2 (delivery): {"category": "delivery", "reason": "The customer's order arrived late."}
+Example 3 (fraud): {"category": "fraud", "reason": "The customer reports an unauthorized transaction."}
+""".strip()
+
 def load_tickets(path: Path = TICKETS_PATH) -> pd.DataFrame:
     tickets = pd.read_csv(path)
 
