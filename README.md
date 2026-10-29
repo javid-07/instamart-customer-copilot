@@ -685,3 +685,71 @@ python src/create_retention_list.py
 - Predictive model features are restricted to information available before `2025-09-01`.
 - The model metrics come from a single stratified hold-out split; performance may vary on other datasets or time periods.
 - Retention recommendations have not been validated through a live campaign or controlled experiment.
+
+## Part C: Support Ticket Triage with Guardrails
+
+### Task 1: Input Guardrails
+
+**Implementation:** `src/triage_tickets.py`
+
+The input guardrail stage loads `data/raw/tickets.csv` and processes tickets in their original file order. Missing ticket text is treated as empty input.
+
+- Empty or whitespace-only tickets are assigned `skipped_empty`.
+- Tickets with estimated input tokens greater than `MAX_INPUT_TOKENS = 400` are assigned `flagged_long`.
+- All remaining tickets are marked `eligible` for subsequent pipeline stages.
+- The token estimate is calculated using `mock_llm.est_tokens()`.
+- No model calls are made during this stage.
+
+**Verified results:**
+
+| Check | Result |
+|---|---:|
+| Total tickets | 164 |
+| Empty tickets skipped | 4 |
+| Long tickets flagged | 4 |
+| Eligible tickets | 156 |
+| Estimated tokens per long ticket | 734 |
+
+The script includes assertions to verify the ticket count, original file order, and expected status counts.
+
+**Reproduce:**
+
+```powershell
+python .\src\triage_tickets.py
+
+### Task 2: PII Redaction
+
+**Implementation:** `redact_pii()` in `src/triage_tickets.py`
+
+Before ticket text is used by subsequent pipeline stages, the redaction
+function applies the required regular expressions in this exact order:
+
+1. Email addresses matching `[\w.+-]+@[\w-]+\.[\w.]+` are replaced with `[EMAIL]`.
+2. Phone numbers matching `\b[6-9]\d{9}\b` are replaced with `[PHONE]`.
+3. Order IDs matching `ORD-\d{6}` are replaced with `[ORDER_ID]`.
+
+The implementation uses `re.subn()` to replace matches and count the
+number of replacements. Redacted text and per-ticket redaction counts
+are stored by `prepare_tickets()`.
+
+**Verified redaction counts across all 164 tickets:**
+
+| PII type | Replacement | Count |
+|---|---|---:|
+| Email addresses | `[EMAIL]` | 55 |
+| Phone numbers | `[PHONE]` | 91 |
+| Order IDs | `[ORDER_ID]` | 132 |
+| **Total** | | **278** |
+
+**Verification results:**
+- All expected redaction counts matched.
+- PII remaining in prepared ticket text: 0.
+- The script prints redaction counts and asserts the expected totals.
+- The user-message helper returns a message whose content contains only
+  the supplied redacted ticket text.
+- Task 1 guardrail counts remain correct: 4 empty, 4 long, 156 eligible.
+
+**Reproduce:**
+
+```powershell
+python .\src\triage_tickets.py

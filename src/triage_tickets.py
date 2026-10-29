@@ -1,0 +1,136 @@
+import sys
+from pathlib import Path
+import re
+import pandas as pd
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import mock_llm
+
+
+TICKETS_PATH = ROOT / "data" / "raw" / "tickets.csv"
+MAX_INPUT_TOKENS = 400
+
+def load_tickets(path: Path = TICKETS_PATH) -> pd.DataFrame:
+    tickets = pd.read_csv(path)
+
+    required_columns = {
+        "ticket_id",
+        "customer_id",
+        "order_id",
+        "text",
+        "true_category",
+    }
+
+    missing = required_columns - set(tickets.columns)
+    if missing:
+        raise ValueError(f"Missing required ticket columns: {sorted(missing)}")
+
+    tickets["text"] = tickets["text"].fillna("").astype(str)
+
+    return tickets
+
+def redact_pii(text: str) -> tuple[str, dict[str, int]]:
+    """Redact email addresses, phone numbers, and order IDs in order."""
+
+    counts = {
+        "emails": 0,
+        "phones": 0,
+        "order_ids": 0,
+    }
+
+    text, counts["emails"] = re.subn(
+        r"[\w.+-]+@[\w-]+\.[\w.]+",
+        "[EMAIL]",
+        text,
+    )
+
+    text, counts["phones"] = re.subn(
+        r"\b[6-9]\d{9}\b",
+        "[PHONE]",
+        text,
+    )
+
+    text, counts["order_ids"] = re.subn(
+        r"ORD-\d{6}",
+        "[ORDER_ID]",
+        text,
+    )
+
+    return text, counts
+
+def check_input_guardrail(text: str) -> tuple[str | None, int]:
+
+    if not text.strip():
+        return "skipped_empty", 0
+
+    estimated_tokens = mock_llm.est_tokens(text)
+
+    if estimated_tokens > MAX_INPUT_TOKENS:
+        return "flagged_long", estimated_tokens
+
+    return None, estimated_tokens
+
+def prepare_tickets(tickets: pd.DataFrame) -> pd.DataFrame:
+    results = []
+
+    for row in tickets.to_dict(orient="records"):
+        status, estimated_tokens = check_input_guardrail(row["text"])
+        redacted_text, redaction_counts = redact_pii(row["text"])
+
+        results.append({
+            "ticket_id": row["ticket_id"],
+            "customer_id": row["customer_id"],
+            "text": redacted_text,
+        
+            "redaction_counts": redaction_counts,
+            "true_category": row["true_category"],
+            "estimated_tokens": estimated_tokens,
+            "status": status or "eligible",
+        })
+
+    return pd.DataFrame(results)
+
+def build_user_message(redacted_text: str) -> dict[str, str]:
+    """Build a model user message containing only redacted ticket text."""
+    return {
+        "role": "user",
+        "content": redacted_text,
+    }
+
+
+def main() -> None:
+    tickets = load_tickets()
+    results = prepare_tickets(tickets)
+    assert results["text"].notna().all()
+    patterns = [
+        r"[\w.+-]+@[\w-]+\.[\w.]+",
+        r"\b[6-9]\d{9}\b",
+        r"ORD-\d{6}",
+    ]
+    for text in results["text"]:
+        for pattern in patterns:
+            assert not re.search(pattern, text), (
+                f"PII remains after redaction: {pattern}"
+            )
+    print("PII redaction assertion: PASS")
+    totals = {"emails": 0, "phones": 0, "order_ids": 0}
+    for counts in results["redaction_counts"]:
+        for key, value in counts.items():
+            totals[key] += value
+    print("Redaction counts:", totals)
+    print("Total redactions:", sum(totals.values()))
+    assert totals == {"emails": 55, "phones": 91, "order_ids": 132}
+    assert len(results) == 164
+    assert (results["status"] == "skipped_empty").sum() == 4
+    assert (results["status"] == "flagged_long").sum() == 4
+    assert (results["status"] == "eligible").sum() == 156
+    assert results["ticket_id"].tolist() == tickets["ticket_id"].tolist(), "Ticket order changed!"
+
+    print("Total tickets:", len(results))
+    print("Skipped empty:", (results["status"] == "skipped_empty").sum())
+    print("Flagged long:", (results["status"] == "flagged_long").sum())
+    print("Eligible:", (results["status"] == "eligible").sum())
+
+
+if __name__ == "__main__":
+    main()
