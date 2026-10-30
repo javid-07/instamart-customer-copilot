@@ -2,13 +2,42 @@ import sys
 from pathlib import Path
 import re
 import pandas as pd
+import random
+import time
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import mock_llm
 
-
 TICKETS_PATH = ROOT / "data" / "raw" / "tickets.csv"
 MAX_INPUT_TOKENS = 400
+BASE_DELAY = 0.05
+MAX_RETRIES = 3
+
+def call_with_retries(ticket_id, messages):
+    """Calling the mock LLM with exponential backoff and jitter."""
+
+    for retry_number in range(MAX_RETRIES + 1):
+        try:
+            return mock_llm.chat(messages)
+
+        except mock_llm.TransientLLMError:
+            if retry_number == MAX_RETRIES:
+                raise
+
+            wait = (
+                BASE_DELAY
+                * (2 ** retry_number)
+                * random.uniform(0.9, 1.15)
+            )
+
+            print(
+                f"Retry: ticket_id={ticket_id}, "
+                f"retry_number={retry_number}, "
+                f"wait={wait:.4f}s"
+            )
+
+            time.sleep(wait)
 
 ZERO_SHOT_PROMPT = """
 CLASSIFY the customer support ticket into exactly one of these categories:
@@ -159,6 +188,36 @@ def main() -> None:
     print("Flagged long:", (results["status"] == "flagged_long").sum())
     print("Eligible:", (results["status"] == "eligible").sum())
 
+
+    # Run the model only for eligible tickets.
+    eligible_tickets = results[
+        results["status"] == "eligible"
+    ]
+
+    # Reset immediately before the full model run.
+    mock_llm.reset()
+
+    successful_calls = 0
+
+    for row in eligible_tickets.to_dict(orient="records"):
+        messages = [
+            {
+                "role": "system",
+                "content": FEW_SHOT_PROMPT,
+            },
+            build_user_message(row["text"]),
+        ]
+
+        response = call_with_retries(
+            row["ticket_id"],
+            messages,
+        )
+
+        assert response.choices[0].message.content is not None
+        successful_calls += 1
+
+    print("Successful model calls:", successful_calls)
+    assert successful_calls == 156
 
 if __name__ == "__main__":
     main()

@@ -776,3 +776,37 @@ python .\test_task3.py
 ```
 
 The test checks the required classification instruction, categories, JSON format, zero-shot example restriction, and few-shot examples, including fraud.
+
+### Task 4: Resilient Calls (4 marks)
+
+Implemented a retry mechanism in `src/triage_tickets.py` to handle transient model API failures.
+
+**Retry configuration**
+- `BASE_DELAY = 0.05` seconds.
+- `MAX_RETRIES = 3` per ticket.
+- Catches `mock_llm.TransientLLMError`.
+- Uses exponential backoff with jitter:
+
+  `wait = BASE_DELAY × 2**n × random.uniform(0.9, 1.15)`
+
+- Logs the ticket ID, retry number, and calculated wait time for every retry.
+- Calls `mock_llm.reset()` immediately before each full model run.
+- Uses `call_with_retries()` for eligible ticket model calls.
+
+**Validation results**
+
+A full run over the 156 eligible tickets produced:
+- 19 transient failures, all recovered by retry.
+- 156 successful model responses.
+- 0 permanent errors.
+- All observed retry waits were within the required range of 0.045–0.0575 seconds.
+
+**Reproduce the test**
+
+Run the main pipeline from the repository root:
+
+```powershell
+python .\src\triage_tickets.py
+```
+
+The pipeline prints one retry log per transient failure and confirms 156 successful model calls.
