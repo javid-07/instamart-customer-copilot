@@ -810,3 +810,34 @@ python .\src\triage_tickets.py
 ```
 
 The pipeline prints one retry log per transient failure and confirms 156 successful model calls.
+
+### Task 5: Validate Every Answer (4 marks)
+
+Implemented response validation in `src/triage_tickets.py` using the `validate_response()` function.
+
+**Validation logic**
+
+1. Parse the model response using `json.loads()`.
+2. If the JSON contains one of the four allowed categories (`billing`, `delivery`, `technical`, `fraud`), accept it with status `classified_json`.
+3. If JSON parsing fails, extract lowercase words using `re.findall(r"[a-z]+", text.lower())`.
+4. If exactly one allowed category is found, accept it with status `classified_keyword`.
+5. If the response is invalid, ambiguous, or contains an unsupported category, assign `flagged_invalid_output`. Do not guess a category.
+
+**Validation results**
+
+| Status | Actual count |
+|---|---:|
+| classified_json | 135 |
+| classified_keyword | 12 |
+| flagged_invalid_output | 9 |
+| **Total eligible tickets** | **156** |
+
+**Reproduce the validation**
+
+Run the full pipeline from the repository root:
+
+```powershell
+python .\src\triage_tickets.py
+```
+
+The observed status counts match the assignment reference values.

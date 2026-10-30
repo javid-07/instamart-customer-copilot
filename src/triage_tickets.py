@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import random
 import time
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -38,6 +39,43 @@ def call_with_retries(ticket_id, messages):
             )
 
             time.sleep(wait)
+
+def validate_response(response_text):
+    """Validate JSON output or extract one unambiguous category keyword."""
+
+    allowed_categories = {
+        "billing",
+        "delivery",
+        "technical",
+        "fraud",
+    }
+
+    # First, try parsing the response as JSON.
+    try:
+        data = json.loads(response_text)
+
+        if (
+            isinstance(data, dict)
+            and data.get("category") in allowed_categories
+        ):
+            return "classified_json", data["category"]
+
+        # Valid JSON with an unsupported category must be flagged.
+        return "flagged_invalid_output", None
+
+    except json.JSONDecodeError:
+        pass
+
+    # If JSON parsing fails, extract lowercase words.
+    words = re.findall(r"[a-z]+", response_text.lower())
+
+    matched_categories = allowed_categories.intersection(words)
+
+    if len(matched_categories) == 1:
+        category = matched_categories.pop()
+        return "classified_keyword", category
+
+    return "flagged_invalid_output", None
 
 ZERO_SHOT_PROMPT = """
 CLASSIFY the customer support ticket into exactly one of these categories:
@@ -199,6 +237,12 @@ def main() -> None:
 
     successful_calls = 0
 
+    status_counts = {
+    "classified_json": 0,
+    "classified_keyword": 0,
+    "flagged_invalid_output": 0,
+}
+
     for row in eligible_tickets.to_dict(orient="records"):
         messages = [
             {
@@ -213,9 +257,22 @@ def main() -> None:
             messages,
         )
 
-        assert response.choices[0].message.content is not None
+        response_text = response.choices[0].message.content
+        status, category = validate_response(response_text)
+        status_counts[status] += 1
+        print(
+            f"Ticket: {row['ticket_id']}, "
+            f"Status: {status}, "
+            f"Category: {category}"
+        )
         successful_calls += 1
 
+    print("Validation status counts:", status_counts)
+    assert status_counts == {
+        "classified_json": 135,
+        "classified_keyword": 12,
+        "flagged_invalid_output": 9,
+    }
     print("Successful model calls:", successful_calls)
     assert successful_calls == 156
 
