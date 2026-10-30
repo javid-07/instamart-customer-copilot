@@ -192,62 +192,19 @@ def build_user_message(redacted_text: str) -> dict[str, str]:
         "content": redacted_text,
     }
 
+def run_classification(eligible_tickets, prompt):
+    """Run ticket classification using the selected prompt."""
 
-def main() -> None:
-    tickets = load_tickets()
-    results = prepare_tickets(tickets)
-    assert results["text"].notna().all()
-    patterns = [
-        r"[\w.+-]+@[\w-]+\.[\w.]+",
-        r"\b[6-9]\d{9}\b",
-        r"ORD-\d{6}",
-    ]
-    for text in results["text"]:
-        for pattern in patterns:
-            assert not re.search(pattern, text), (
-                f"PII remains after redaction: {pattern}"
-            )
-    print("PII redaction assertion: PASS")
-    totals = {"emails": 0, "phones": 0, "order_ids": 0}
-    for counts in results["redaction_counts"]:
-        for key, value in counts.items():
-            totals[key] += value
-    print("Redaction counts:", totals)
-    print("Total redactions:", sum(totals.values()))
-    assert totals == {"emails": 55, "phones": 91, "order_ids": 132}
-    assert len(results) == 164
-    assert (results["status"] == "skipped_empty").sum() == 4
-    assert (results["status"] == "flagged_long").sum() == 4
-    assert (results["status"] == "eligible").sum() == 156
-    assert results["ticket_id"].tolist() == tickets["ticket_id"].tolist(), "Ticket order changed!"
-
-    print("Total tickets:", len(results))
-    print("Skipped empty:", (results["status"] == "skipped_empty").sum())
-    print("Flagged long:", (results["status"] == "flagged_long").sum())
-    print("Eligible:", (results["status"] == "eligible").sum())
-
-
-    # Run the model only for eligible tickets.
-    eligible_tickets = results[
-        results["status"] == "eligible"
-    ]
-
-    # Reset immediately before the full model run.
     mock_llm.reset()
 
-    successful_calls = 0
-
-    status_counts = {
-    "classified_json": 0,
-    "classified_keyword": 0,
-    "flagged_invalid_output": 0,
-}
+    run_results = []
+    total_tokens = 0
 
     for row in eligible_tickets.to_dict(orient="records"):
         messages = [
             {
                 "role": "system",
-                "content": FEW_SHOT_PROMPT,
+                "content": prompt,
             },
             build_user_message(row["text"]),
         ]
@@ -259,22 +216,159 @@ def main() -> None:
 
         response_text = response.choices[0].message.content
         status, category = validate_response(response_text)
-        status_counts[status] += 1
-        print(
-            f"Ticket: {row['ticket_id']}, "
-            f"Status: {status}, "
-            f"Category: {category}"
-        )
-        successful_calls += 1
 
-    print("Validation status counts:", status_counts)
-    assert status_counts == {
-        "classified_json": 135,
-        "classified_keyword": 12,
-        "flagged_invalid_output": 9,
+        tokens_used = response.usage.total_tokens
+        total_tokens += tokens_used
+
+        run_results.append({
+            "ticket_id": row["ticket_id"],
+            "true_category": row["true_category"],
+            "predicted_category": category,
+            "status": status,
+            "tokens_used": tokens_used,
+        })
+
+    return pd.DataFrame(run_results), total_tokens
+
+
+def main() -> None:
+    tickets = load_tickets()
+    results = prepare_tickets(tickets)
+
+    assert results["text"].notna().all()
+
+    patterns = [
+        r"[\w.+-]+@[\w-]+\.[\w.]+",
+        r"\b[6-9]\d{9}\b",
+        r"ORD-\d{6}",
+    ]
+
+    for text in results["text"]:
+        for pattern in patterns:
+            assert not re.search(pattern, text), (
+                f"PII remains after redaction: {pattern}"
+            )
+
+    print("PII redaction assertion: PASS")
+
+    totals = {"emails": 0, "phones": 0, "order_ids": 0}
+
+    for counts in results["redaction_counts"]:
+        for key, value in counts.items():
+            totals[key] += value
+
+    print("Redaction counts:", totals)
+    print("Total redactions:", sum(totals.values()))
+
+    assert totals == {
+        "emails": 55,
+        "phones": 91,
+        "order_ids": 132,
     }
-    print("Successful model calls:", successful_calls)
-    assert successful_calls == 156
+
+    assert len(results) == 164
+    assert (results["status"] == "skipped_empty").sum() == 4
+    assert (results["status"] == "flagged_long").sum() == 4
+    assert (results["status"] == "eligible").sum() == 156
+
+    assert results["ticket_id"].tolist() == tickets["ticket_id"].tolist(), (
+        "Ticket order changed!"
+    )
+
+    print("Total tickets:", len(results))
+    print("Skipped empty:", (results["status"] == "skipped_empty").sum())
+    print("Flagged long:", (results["status"] == "flagged_long").sum())
+    print("Eligible:", (results["status"] == "eligible").sum())
+
+    # Run both classification prompts.
+    eligible_tickets = results[
+        results["status"] == "eligible"
+    ]
+
+    print("\n========== ZERO-SHOT RUN ==========")
+
+    zero_shot_results, zero_shot_tokens = run_classification(
+        eligible_tickets,
+        ZERO_SHOT_PROMPT,
+    )
+
+    print("\n========== FEW-SHOT RUN ==========")
+
+    few_shot_results, few_shot_tokens = run_classification(
+        eligible_tickets,
+        FEW_SHOT_PROMPT,
+    )
+
+    # Calculate classification metrics.
+    def calculate_metrics(run_results, total_tokens):
+        classified = run_results[
+            run_results["status"].isin(
+                ["classified_json", "classified_keyword"]
+            )
+        ]
+
+        correct = (
+            classified["true_category"]
+            == classified["predicted_category"]
+        ).sum()
+
+        classified_count = len(classified)
+
+        accuracy = (
+            correct / classified_count * 100
+            if classified_count else 0
+        )
+
+        tokens_per_ticket = (
+            total_tokens / classified_count
+            if classified_count else 0
+        )
+
+        return {
+            "classified": classified_count,
+            "correct": int(correct),
+            "accuracy": accuracy,
+            "total_tokens": total_tokens,
+            "tokens_per_ticket": tokens_per_ticket,
+        }
+
+    zero_metrics = calculate_metrics(
+        zero_shot_results,
+        zero_shot_tokens,
+    )
+
+    few_metrics = calculate_metrics(
+        few_shot_results,
+        few_shot_tokens,
+    )
+
+    print("\n========== TASK 6 COMPARISON ==========")
+
+    print("\nZero-shot metrics:")
+    for key, value in zero_metrics.items():
+        print(f"{key}: {value}")
+
+    print("\nFew-shot metrics:")
+    for key, value in few_metrics.items():
+        print(f"{key}: {value}")
+
+    # Zero-shot confusion matrix.
+    zero_classified = zero_shot_results[
+        zero_shot_results["status"].isin(
+            ["classified_json", "classified_keyword"]
+        )
+    ]
+
+    confusion_matrix = pd.crosstab(
+        zero_classified["true_category"],
+        zero_classified["predicted_category"],
+        rownames=["Actual"],
+        colnames=["Predicted"],
+        dropna=False,
+    )
+
+    print("\nZero-shot confusion matrix:")
+    print(confusion_matrix)
 
 if __name__ == "__main__":
     main()

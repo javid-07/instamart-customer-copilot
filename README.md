@@ -841,3 +841,42 @@ python .\src\triage_tickets.py
 ```
 
 The observed status counts match the assignment reference values.
+
+### Task 6: Compare Zero-Shot and Few-Shot Prompts (3 marks)
+
+**Implementation**
+
+Implemented `run_classification()` to execute the pipeline independently using zero-shot and few-shot prompts. The model was reset before each run. Classification results, token usage, and prediction accuracy were collected for comparison.
+
+**Comparison Results**
+
+| Metric | Zero-Shot | Few-Shot |
+|---|---:|---:|
+| Classified tickets | 147 | 147 |
+| Correct predictions | 126 | 147 |
+| Accuracy | 85.71% | 100% |
+| Total tokens | 16,108 | 22,348 |
+| Tokens per classified ticket | 109.58 | 152.03 |
+
+**Zero-Shot Confusion Matrix**
+
+| Actual / Predicted | Billing | Delivery | Fraud | Technical |
+|---|---:|---:|---:|---:|
+| Billing | 38 | 0 | 0 | 0 |
+| Delivery | 0 | 36 | 0 | 0 |
+| Fraud | 11 | 0 | 23 | 0 |
+| Technical | 10 | 0 | 0 | 29 |
+
+**Analysis**
+
+The zero-shot prompt achieved 85.71% accuracy, while the few-shot prompt achieved 100% accuracy. Zero-shot incorrectly classified 11 fraud tickets and 10 technical tickets as billing. Few-shot used 6,240 additional tokens, or approximately 42.45 extra tokens per classified ticket. The additional token cost is justified because few-shot examples improved classification reliability and eliminated incorrect predictions in this run.
+
+**Reproduce the comparison**
+
+Run the pipeline from the repository root:
+
+```powershell
+python .\src\triage_tickets.py
+```
+
+The comparison includes classification counts, accuracy, total token usage, tokens per classified ticket, and the zero-shot confusion matrix.
