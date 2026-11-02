@@ -954,3 +954,37 @@ python .\src\triage_tickets.py
 ```
 
 This generates both `outputs/triage_budget_demo.csv` and `outputs/triage_results.csv`.
+
+## Part D – Policy RAG Assistant and Refund Agent
+
+### Task 1: Chunk the Policy Documents (2 marks)
+
+Implemented document chunking in `src/policy_rag.py` using the five policy documents from `data/policies/`.
+
+**Chunking configuration**
+
+- Chunk size: 40 words
+- Overlap: 10 words
+- Step size: 30 words
+- Source filename recorded with every chunk.
+
+**Chunk validation results**
+
+| Policy document | Word count | Chunks |
+|---|---:|---:|
+| refund_policy.txt | 119 | 4 |
+| delivery_policy.txt | 100 | 3 |
+| escalation_policy.txt | 78 | 3 |
+| payment_policy.txt | 86 | 3 |
+| privacy_policy.txt | 68 | 2 |
+| **Total** | **451** | **15** |
+
+**Validation:** All five document chunk counts match the assignment reference values.
+
+**Reproduce:**
+
+```powershell
+python .\src\policy_rag.py
+```
+
+Expected result: `Chunk validation: PASS`.
