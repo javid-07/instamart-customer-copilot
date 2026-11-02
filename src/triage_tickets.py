@@ -192,8 +192,13 @@ def build_user_message(redacted_text: str) -> dict[str, str]:
         "content": redacted_text,
     }
 
-def run_classification(eligible_tickets, prompt):
-    """Run ticket classification using the selected prompt."""
+
+def run_classification(
+    eligible_tickets,
+    prompt,
+    token_budget=100000,
+):
+    """Run classification with a token budget."""
 
     mock_llm.reset()
 
@@ -201,6 +206,18 @@ def run_classification(eligible_tickets, prompt):
     total_tokens = 0
 
     for row in eligible_tickets.to_dict(orient="records"):
+
+        # Check budget before making a model call.
+        if total_tokens >= token_budget:
+            run_results.append({
+                "ticket_id": row["ticket_id"],
+                "true_category": row["true_category"],
+                "predicted_category": None,
+                "status": "budget_exhausted",
+                "tokens_used": 0,
+            })
+            continue
+
         messages = [
             {
                 "role": "system",
@@ -229,6 +246,75 @@ def run_classification(eligible_tickets, prompt):
         })
 
     return pd.DataFrame(run_results), total_tokens
+
+
+def build_routing_output(results, run_results, segments):
+    """Merge ticket classifications with customer segments and assign routes."""
+
+    output = results[
+        ["ticket_id", "customer_id", "status"]
+    ].copy()
+
+    output = output.merge(
+        run_results[
+            ["ticket_id", "predicted_category", "status", "tokens_used"]
+        ],
+        on="ticket_id",
+        how="left",
+        suffixes=("", "_model"),
+    )
+
+    # Use model status for tickets that reached classification.
+    output["status"] = output["status_model"].combine_first(
+        output["status"]
+    )
+
+    output = output.drop(columns=["status_model"])
+
+    output = output.merge(
+        segments[["customer_id", "segment_name", "is_premium"]],
+        on="customer_id",
+        how="left",
+    )
+
+    output["category"] = output["predicted_category"].fillna("")
+    output["segment_name"] = output["segment_name"].fillna("")
+    output["tokens_used"] = output["tokens_used"].fillna(0).astype(int)
+
+    def assign_routing(row):
+        if row["status"] in {
+            "skipped_empty",
+            "flagged_long",
+            "flagged_invalid_output",
+            "budget_exhausted",
+        }:
+            return "NORMAL", "human_review"
+
+        if row["category"] == "fraud":
+            return "HIGH", "security_team"
+
+        if row["is_premium"] == True:
+            return "HIGH", "premium_desk"
+
+        return "NORMAL", "support_queue"
+
+    output[["priority", "route"]] = output.apply(
+        lambda row: pd.Series(assign_routing(row)),
+        axis=1,
+    )
+
+    return output[
+        [
+            "ticket_id",
+            "customer_id",
+            "status",
+            "category",
+            "segment_name",
+            "priority",
+            "route",
+            "tokens_used",
+        ]
+    ]
 
 
 def main() -> None:
@@ -369,6 +455,89 @@ def main() -> None:
 
     print("\nZero-shot confusion matrix:")
     print(confusion_matrix)
+
+    #Task7
+    segments = pd.read_csv(
+        ROOT / "outputs" / "customer_segments.csv"
+    )
+
+    # Zero-shot budget demonstration.
+    print("\n========== BUDGET DEMO RUN ==========")
+
+    budget_demo_results, budget_demo_tokens = run_classification(
+        eligible_tickets,
+        ZERO_SHOT_PROMPT,
+        token_budget=6000,
+    )
+
+    budget_exhausted_count = (
+        budget_demo_results["status"] == "budget_exhausted"
+    ).sum()
+
+    print("Demo token budget: 6000")
+    print("Total tokens used:", budget_demo_tokens)
+    print("Budget exhausted tickets:", budget_exhausted_count)
+
+    assert budget_exhausted_count > 0, (
+        "No tickets exhausted the budget. Try a lower demo budget."
+    )
+
+    budget_demo_output = build_routing_output(
+        results,
+        budget_demo_results,
+        segments,
+    )
+
+    output_dir = ROOT / "outputs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    budget_demo_output.to_csv(
+        output_dir / "triage_budget_demo.csv",
+        index=False,
+    )
+
+    print("Saved: outputs/triage_budget_demo.csv")
+
+    # Final few-shot run with a large token budget.
+    print("\n========== FINAL TRIAGE RUN ==========")
+
+    final_results, final_tokens = run_classification(
+        eligible_tickets,
+        FEW_SHOT_PROMPT,
+        token_budget=100000,
+    )
+
+    print("Final token budget: 100000")
+    print("Total tokens used:", final_tokens)
+
+    final_output = build_routing_output(
+        results,
+        final_results,
+        segments,
+    )
+
+    final_output.to_csv(
+        output_dir / "triage_results.csv",
+        index=False,
+    )
+
+    print("Saved: outputs/triage_results.csv")
+    print("\nFinal routing counts:")
+    print(final_output["route"].value_counts())
+
+    assert len(final_output) == 164
+    assert list(final_output.columns) == [
+        "ticket_id",
+        "customer_id",
+        "status",
+        "category",
+        "segment_name",
+        "priority",
+        "route",
+        "tokens_used",
+    ]
+    assert not (final_output["status"] == "budget_exhausted").any()
+
 
 if __name__ == "__main__":
     main()

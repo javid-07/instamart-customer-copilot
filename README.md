@@ -880,3 +880,77 @@ python .\src\triage_tickets.py
 ```
 
 The comparison includes classification counts, accuracy, total token usage, tokens per classified ticket, and the zero-shot confusion matrix.
+
+### Task 7: Budget, Routing and Output (3 marks)
+
+**Implementation**
+
+Implemented token-budget enforcement and customer-based ticket routing in `src/triage_tickets.py`.
+
+Before every model call, the pipeline checks whether the accumulated `usage.total_tokens` is greater than or equal to `TOKEN_BUDGET`. If the budget has been reached, the model is not called and the ticket receives status `budget_exhausted`.
+
+**Budget Demonstration**
+
+- Prompt: Zero-shot
+- Token budget: 6,000
+- Actual tokens consumed: 6,086
+- Budget-exhausted tickets: 97
+- Output: `outputs/triage_budget_demo.csv`
+- Total tickets: 164
+
+The token total may exceed 6,000 because the budget is checked before each model call, not during a call.
+
+**Final Few-Shot Run**
+
+- Prompt: Few-shot
+- Token budget: 100,000
+- Actual tokens consumed: 22,348
+- Output: `outputs/triage_results.csv`
+- Total tickets: 164
+- Budget-exhausted tickets: 0
+
+**Routing Rules**
+
+1. Tickets with status `skipped_empty`, `flagged_long`, `flagged_invalid_output`, or `budget_exhausted` are routed to `human_review` with `NORMAL` priority.
+2. Valid fraud classifications are routed to `security_team` with `HIGH` priority.
+3. Other valid classifications from premium customers are routed to `premium_desk` with `HIGH` priority.
+4. Remaining valid classifications are routed to `support_queue` with `NORMAL` priority.
+5. Customers missing from the segment file are treated as non-premium.
+
+Customer segmentation is loaded from `outputs/customer_segments.csv`.
+
+**Final Routing Results**
+
+| Route | Tickets |
+|---|---:|
+| support_queue | 102 |
+| security_team | 34 |
+| human_review | 17 |
+| premium_desk | 11 |
+| **Total** | **164** |
+
+**Output Columns**
+
+`ticket_id`, `customer_id`, `status`, `category`, `segment_name`, `priority`, `route`, `tokens_used`
+
+The final output contains 135 `classified_json`, 12 `classified_keyword`, 9 `flagged_invalid_output`, 4 `skipped_empty`, and 4 `flagged_long` tickets.
+
+The 147 successfully classified tickets have rule-validated categories. The remaining 17 tickets require human review.
+
+**Validation**
+
+- Both CSV outputs contain 164 rows.
+- Final output contains all eight required columns.
+- No routing violations were detected.
+- All required statuses and priorities were verified.
+- Budget demonstration successfully produced 97 `budget_exhausted` tickets.
+
+**Reproduce**
+
+Run from the repository root:
+
+```powershell
+python .\src\triage_tickets.py
+```
+
+This generates both `outputs/triage_budget_demo.csv` and `outputs/triage_results.csv`.
