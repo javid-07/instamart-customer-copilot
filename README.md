@@ -957,7 +957,7 @@ This generates both `outputs/triage_budget_demo.csv` and `outputs/triage_results
 
 ## Part D – Policy RAG Assistant and Refund Agent
 
-### Task 1: Chunk the Policy Documents (2 marks)
+### Task 1: Chunk the Policy Documents
 
 Implemented document chunking in `src/policy_rag.py` using the five policy documents from `data/policies/`.
 
