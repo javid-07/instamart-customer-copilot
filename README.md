@@ -777,7 +777,7 @@ python .\test_task3.py
 
 The test checks the required classification instruction, categories, JSON format, zero-shot example restriction, and few-shot examples, including fraud.
 
-### Task 4: Resilient Calls (4 marks)
+### Task 4: Resilient Calls
 
 Implemented a retry mechanism in `src/triage_tickets.py` to handle transient model API failures.
 
@@ -811,7 +811,7 @@ python .\src\triage_tickets.py
 
 The pipeline prints one retry log per transient failure and confirms 156 successful model calls.
 
-### Task 5: Validate Every Answer (4 marks)
+### Task 5: Validate Every Answer
 
 Implemented response validation in `src/triage_tickets.py` using the `validate_response()` function.
 
@@ -842,7 +842,7 @@ python .\src\triage_tickets.py
 
 The observed status counts match the assignment reference values.
 
-### Task 6: Compare Zero-Shot and Few-Shot Prompts (3 marks)
+### Task 6: Compare Zero-Shot and Few-Shot Prompts
 
 **Implementation**
 
@@ -881,7 +881,7 @@ python .\src\triage_tickets.py
 
 The comparison includes classification counts, accuracy, total token usage, tokens per classified ticket, and the zero-shot confusion matrix.
 
-### Task 7: Budget, Routing and Output (3 marks)
+### Task 7: Budget, Routing and Output
 
 **Implementation**
 
