@@ -988,3 +988,34 @@ python .\src\policy_rag.py
 ```
 
 Expected result: `Chunk validation: PASS`.
+
+### Task 2: Vectorize and Retrieve
+
+Implemented TF-IDF vectorization and cosine similarity retrieval in `src/policy_rag.py`.
+
+- Used `TfidfVectorizer()` to fit the 15 policy chunks.
+- Transformed each search query using the same fitted vectorizer.
+- Ranked policy chunks using `cosine_similarity()`.
+- Implemented `retrieve(query, k=3)`, returning the source filename, similarity score and chunk text.
+
+**TF-IDF explanation**
+
+Term Frequency (TF) measures how often a word appears in a document, while Inverse Document Frequency (IDF) gives more weight to words that are rare across the document collection. One limitation of TF-IDF is that it relies on word matching, so two sentences with the same meaning but different wording may receive low similarity scores.
+
+**Reference query validation**
+
+Query: `refund policy late delivery`
+
+| Rank | Source | Similarity score |
+|---|---|---:|
+| 1 | refund_policy.txt | 0.2719 |
+| 2 | refund_policy.txt | 0.2514 |
+| 3 | refund_policy.txt | 0.2454 |
+
+**Validation:** All three top results came from `refund_policy.txt`.
+
+**Reproduce:**
+
+```powershell
+python -c "import sys; sys.path.insert(0,'src'); from policy_rag import retrieve; print(retrieve('refund policy late delivery', k=3))"
+```

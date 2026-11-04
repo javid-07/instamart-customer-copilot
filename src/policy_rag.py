@@ -1,10 +1,10 @@
-
 from pathlib import Path
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_DIR = ROOT / "data" / "policies"
-
 
 def chunk_documents(chunk_size=40, overlap=10):
     """Split policy documents into overlapping word chunks."""
@@ -36,6 +36,36 @@ def chunk_documents(chunk_size=40, overlap=10):
                 break
 
     return chunks
+
+# Fitting TF-IDF on all policy chunks.
+CHUNKS = chunk_documents()
+CHUNK_TEXTS = [chunk["text"] for chunk in CHUNKS]
+
+VECTORIZER = TfidfVectorizer()
+TFIDF_MATRIX = VECTORIZER.fit_transform(CHUNK_TEXTS)
+
+def retrieve(query, k=3):
+    """Retrieving the top-k policy chunks using cosine similarity."""
+
+    query_vector = VECTORIZER.transform([query])
+
+    similarities = cosine_similarity(
+        query_vector,
+        TFIDF_MATRIX,
+    ).flatten()
+
+    top_indices = similarities.argsort()[::-1][:k]
+
+    results = []
+
+    for index in top_indices:
+        results.append({
+            "source": CHUNKS[index]["source"],
+            "score": float(similarities[index]),
+            "text": CHUNKS[index]["text"],
+        })
+
+    return results
 
 
 if __name__ == "__main__":
