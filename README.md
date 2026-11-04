@@ -1050,3 +1050,47 @@ For questions not covered by the policy documents, the assistant returns:
 
 ```powershell
 python -c "import sys; sys.path.insert(0,'src'); from policy_rag import answer; print(answer('How much refund does a customer receive for delivery after 45 minutes?')); print(answer('What is the favourite colour of the company mascot?'))"
+
+### Task 4: Evaluate Retrieval Quality
+
+Implemented `evaluate_policy(overlap=10)` in `src/policy_rag.py` to evaluate retrieval and answer quality using all 14 questions in `data/raw/policy_eval.csv`.
+
+**Evaluation metrics**
+
+- Document retrieval accuracy: expected document appears in the top 3 retrieved chunks.
+- Expected fact accuracy: generated answer contains the exact expected fact.
+- Fallback accuracy: unanswerable questions return an answer beginning with `I could not find`.
+
+**Normal overlap: 40-word chunks with 10-word overlap**
+
+| Metric | Result |
+|---|---:|
+| Total questions | 14 |
+| Document retrieval accuracy | 12/12 |
+| Expected fact accuracy | 12/12 |
+| Unanswerable fallback accuracy | 2/2 |
+| Overall passed | 14/14 |
+
+**Zero overlap: 40-word chunks with 0-word overlap**
+
+| Metric | Result |
+|---|---:|
+| Total questions | 14 |
+| Document retrieval accuracy | 12/12 |
+| Expected fact accuracy | 10/12 |
+| Unanswerable fallback accuracy | 2/2 |
+| Overall passed | 12/14 |
+
+**Zero-overlap failure analysis**
+
+1. Refund eligibility question: the expected fact `more than 45 minutes` was not present in the generated answer because the relevant information was split across chunk boundaries.
+2. Failed payment refund question: the expected fact `48 hours` was not present in the generated answer because the relevant information was split across chunks.
+
+The comparison demonstrates that 10-word overlap preserves context across chunk boundaries and improves answer accuracy.
+
+**Reproduce:**
+
+```powershell
+python -c "import sys; sys.path.insert(0,'src'); from policy_rag import evaluate_policy; results=evaluate_policy(overlap=10); print('Normal overlap:', sum(r['passed'] for r in results), '/', len(results))"
+
+python -c "import sys; sys.path.insert(0,'src'); from policy_rag import evaluate_policy; results=evaluate_policy(overlap=0); print('Zero overlap:', sum(r['passed'] for r in results), '/', len(results))"

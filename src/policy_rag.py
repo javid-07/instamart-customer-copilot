@@ -122,6 +122,56 @@ def answer(question):
         "sources": [item["source"] for item in sources],
     }
 
+def evaluate_policy(overlap=10):
+    """Evaluate policy retrieval and answer accuracy."""
+
+    import csv
+
+    global CHUNKS, CHUNK_TEXTS, VECTORIZER, TFIDF_MATRIX
+
+    # Build the index using the requested overlap.
+    CHUNKS = chunk_documents(chunk_size=40, overlap=overlap)
+    CHUNK_TEXTS = [chunk["text"] for chunk in CHUNKS]
+
+    VECTORIZER = TfidfVectorizer()
+    TFIDF_MATRIX = VECTORIZER.fit_transform(CHUNK_TEXTS)
+
+    results = []
+
+    eval_file = ROOT / "data" / "raw" / "policy_eval.csv"
+
+    with eval_file.open("r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            question = row["question"]
+            expected_doc = row["expected_doc"]
+            expected_fact = row["expected_fact"]
+
+            retrieved = retrieve(question, k=3)
+            response = answer(question)
+            answer_text = response["answer"]
+
+            if expected_doc == "NONE":
+                passed = answer_text.startswith("I could not find")
+                doc_match = None
+                fact_match = None
+            else:
+                doc_match = expected_doc in [
+                    item["source"] for item in retrieved
+                ]
+                fact_match = expected_fact in answer_text
+                passed = doc_match and fact_match
+
+            results.append({
+                "question": question,
+                "expected_doc": expected_doc,
+                "doc_match": doc_match,
+                "fact_match": fact_match,
+                "passed": passed,
+            })
+
+    return results
 
 if __name__ == "__main__":
     chunks = chunk_documents()
