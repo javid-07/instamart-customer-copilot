@@ -68,6 +68,61 @@ def retrieve(query, k=3):
     return results
 
 
+def answer(question):
+    """Answer a policy question using retrieved context."""
+
+    import sys
+    sys.path.insert(0, str(ROOT))
+
+    import mock_llm
+
+    sources = retrieve(question, k=3)
+
+    # Ignore irrelevant chunks with zero similarity.
+    sources = [
+        item for item in sources
+        if item["score"] > 0
+    ]
+
+    context_parts = []
+
+    for item in sources:
+        context_parts.append(
+            f"[{item['source']}]\n{item['text']}"
+        )
+
+    user_message = (
+        "CONTEXT:\n"
+        + "\n".join(context_parts)
+        + "\nQUESTION:\n"
+        + question
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "POLICY ASSISTANT. Answer the question using only "
+                "the supplied policy context. Do not use outside "
+                "knowledge or make assumptions. If the information "
+                "is not available in the context, say that you "
+                "could not find the information in the policy documents."
+            ),
+        },
+        {
+            "role": "user",
+            "content": user_message,
+        },
+    ]
+
+    response = mock_llm.chat(messages)
+
+    return {
+        "answer": response.choices[0].message.content,
+        "sources": [item["source"] for item in sources],
+    }
+
+
 if __name__ == "__main__":
     chunks = chunk_documents()
 

@@ -1019,3 +1019,34 @@ Query: `refund policy late delivery`
 ```powershell
 python -c "import sys; sys.path.insert(0,'src'); from policy_rag import retrieve; print(retrieve('refund policy late delivery', k=3))"
 ```
+
+### Task 3: Augment and Answer
+
+Implemented a retrieval-augmented policy answering function named `answer(question)` in `src/policy_rag.py`.
+
+**Implementation details**
+
+- Retrieves the top 3 relevant policy chunks using `retrieve()`.
+- Builds the context using the source filename and retrieved chunk text.
+- Sends exactly two messages to `mock_llm.chat()`:
+  - System message: identifies the POLICY ASSISTANT and restricts answers to the supplied policy context.
+  - User message: contains the retrieved context and the original question.
+- Returns the generated answer and the source filenames.
+
+**Validation results**
+
+| Test case | Result |
+|---|---|
+| Answerable refund policy question | PASS |
+| Unanswerable mascot question | PASS |
+| Unanswerable cricket question | PASS |
+| Answer includes retrieved sources | PASS |
+
+For questions not covered by the policy documents, the assistant returns:
+
+`I could not find that information in the policy documents.`
+
+**Reproduce:**
+
+```powershell
+python -c "import sys; sys.path.insert(0,'src'); from policy_rag import answer; print(answer('How much refund does a customer receive for delivery after 45 minutes?')); print(answer('What is the favourite colour of the company mascot?'))"
