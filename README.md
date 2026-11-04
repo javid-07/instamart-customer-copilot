@@ -1050,6 +1050,7 @@ For questions not covered by the policy documents, the assistant returns:
 
 ```powershell
 python -c "import sys; sys.path.insert(0,'src'); from policy_rag import answer; print(answer('How much refund does a customer receive for delivery after 45 minutes?')); print(answer('What is the favourite colour of the company mascot?'))"
+```
 
 ### Task 4: Evaluate Retrieval Quality
 
