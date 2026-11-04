@@ -5,6 +5,33 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_DIR = ROOT / "data" / "policies"
+DB_PATH = ROOT / "data" / "instamart.db"
+OUTPUT_DIR = ROOT / "outputs"
+REFUND_LEDGER = OUTPUT_DIR / "refund_ledger.jsonl"
+
+def get_order(order_id):
+    """Retrieve an order from the Instamart database."""
+
+    import sqlite3
+
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+
+    try:
+        row = connection.execute(
+            "SELECT * FROM orders WHERE order_id = ?",
+            (order_id,),
+        ).fetchone()
+
+        if row is None:
+            return {
+                "error": f"Order {order_id} not found."
+            }
+
+        return dict(row)
+
+    finally:
+        connection.close()
 
 def chunk_documents(chunk_size=40, overlap=10):
     """Split policy documents into overlapping word chunks."""
@@ -67,6 +94,124 @@ def retrieve(query, k=3):
 
     return results
 
+def search_policy(query):
+    """Search policy documents and return matching results."""
+
+    results = retrieve(query, k=3)
+
+    return {
+        "results": results
+    }
+
+def calculate_refund(order_amount, delivery_minutes):
+    """Calculate refund based on the late-delivery policy."""
+
+    if delivery_minutes > 45:
+        refund_inr = round(float(order_amount), 2)
+    else:
+        refund_inr = 0.0
+
+    return {
+        "refund_inr": refund_inr
+    }
+
+def issue_refund(order_id, refund_inr):
+    """Record an issued refund in the JSONL ledger."""
+
+    import json
+    from datetime import datetime, timezone
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    ledger_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tool_name": "issue_refund",
+        "order_id": order_id,
+        "refund_inr": round(float(refund_inr), 2),
+    }
+
+    with REFUND_LEDGER.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(ledger_entry) + "\n")
+
+    return {
+        "order_id": order_id,
+        "refund_inr": ledger_entry["refund_inr"],
+        "status": "issued",
+    }
+
+def escalate_to_human(order_id, refund_inr):
+    """Record a refund escalation for human approval."""
+
+    import json
+    from datetime import datetime, timezone
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    ledger_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tool_name": "escalate_to_human",
+        "order_id": order_id,
+        "refund_inr": round(float(refund_inr), 2),
+    }
+
+    with REFUND_LEDGER.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(ledger_entry) + "\n")
+
+    return {
+        "order_id": order_id,
+        "refund_inr": ledger_entry["refund_inr"],
+        "status": "escalated",
+    }
+
+TOOLS_SPEC = [
+    {
+        "name": "get_order",
+        "description": "Retrieve order details using an order ID.",
+        "parameters": {
+            "order_id": "string"
+        },
+    },
+    {
+        "name": "search_policy",
+        "description": "Search policy documents and retrieve relevant policy chunks.",
+        "parameters": {
+            "query": "string"
+        },
+    },
+    {
+        "name": "calculate_refund",
+        "description": "Calculate the refund amount based on order amount and delivery time.",
+        "parameters": {
+            "order_amount": "number",
+            "delivery_minutes": "number"
+        },
+    },
+    {
+        "name": "issue_refund",
+        "description": "Record an approved refund in the refund ledger.",
+        "parameters": {
+            "order_id": "string",
+            "refund_inr": "number"
+        },
+    },
+    {
+        "name": "escalate_to_human",
+        "description": "Record a refund request requiring human approval.",
+        "parameters": {
+            "order_id": "string",
+            "refund_inr": "number"
+        },
+    },
+]
+
+
+TOOL_MAP = {
+    "get_order": get_order,
+    "search_policy": search_policy,
+    "calculate_refund": calculate_refund,
+    "issue_refund": issue_refund,
+    "escalate_to_human": escalate_to_human,
+}
 
 def answer(question):
     """Answer a policy question using retrieved context."""

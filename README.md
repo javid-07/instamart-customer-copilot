@@ -1095,3 +1095,46 @@ The comparison demonstrates that 10-word overlap preserves context across chunk 
 python -c "import sys; sys.path.insert(0,'src'); from policy_rag import evaluate_policy; results=evaluate_policy(overlap=10); print('Normal overlap:', sum(r['passed'] for r in results), '/', len(results))"
 
 python -c "import sys; sys.path.insert(0,'src'); from policy_rag import evaluate_policy; results=evaluate_policy(overlap=0); print('Zero overlap:', sum(r['passed'] for r in results), '/', len(results))"
+```
+### Task 5: Define Agent Tools
+
+Implemented five tools in `src/policy_rag.py` and connected them through `TOOLS_SPEC` and `TOOL_MAP`.
+
+**Tool definitions**
+
+| Tool name | Purpose | Parameters |
+|---|---|---|
+| `get_order` | Retrieve order details from SQLite database | `order_id` |
+| `search_policy` | Retrieve relevant policy document chunks | `query` |
+| `calculate_refund` | Calculate refund based on delivery time | `order_amount`, `delivery_minutes` |
+| `issue_refund` | Record an issued refund | `order_id`, `refund_inr` |
+| `escalate_to_human` | Record a refund requiring human approval | `order_id`, `refund_inr` |
+
+**Implementation details**
+
+- `get_order()` queries the `orders` table in `data/instamart.db` and returns an error when the order does not exist.
+- `search_policy()` returns the top 3 policy retrieval results.
+- `calculate_refund()` returns the full order amount when delivery exceeds 45 minutes; otherwise, it returns zero.
+- `issue_refund()` records issued refunds in `outputs/refund_ledger.jsonl`.
+- `escalate_to_human()` records escalations in the same JSONL ledger.
+- Each ledger entry includes a timestamp, tool name, order ID and refund amount.
+- `TOOLS_SPEC` defines the five tools, descriptions and parameters.
+- `TOOL_MAP` maps each tool name to its corresponding Python function.
+
+**Validation results**
+
+| Validation | Result |
+|---|---|
+| Existing order lookup | PASS |
+| Nonexistent order lookup | PASS |
+| Policy retrieval | PASS |
+| Refund calculation and 45-minute boundary | PASS |
+| Refund ledger entry | PASS |
+| Human escalation ledger entry | PASS |
+| Five tool specifications and mappings | PASS |
+
+**Validation command:**
+
+```powershell
+python -c "import sys; sys.path.insert(0,'src'); from policy_rag import TOOLS_SPEC, TOOL_MAP; print('Tool specifications:', len(TOOLS_SPEC)); print('Tool mappings:', list(TOOL_MAP.keys())); assert len(TOOLS_SPEC) == 5; assert set(TOOL_MAP.keys()) == {tool['name'] for tool in TOOLS_SPEC}; print('Task 5 validation: PASS')"
+```
