@@ -318,6 +318,172 @@ def evaluate_policy(overlap=10):
 
     return results
 
+def run_agent(
+    user_message,
+    scenario_id,
+    max_iterations=6,
+    token_limit=6000,
+    time_limit_seconds=10,
+):
+    """Run a ReAct agent with iteration, token and time limits."""
+
+    import json
+    import time
+    import mock_llm
+
+    start_time = time.monotonic()
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "AGENT. You are an Instamart refund support agent. "
+                "Use the available tools to retrieve orders, search "
+                "policies, calculate refunds, issue eligible refunds, "
+                "and escalate refunds above INR 1000. "
+                "Only completed orders are refundable."
+            ),
+        },
+        {
+            "role": "user",
+            "content": user_message,
+        },
+    ]
+
+    steps = []
+    llm_calls = 0
+    tokens_used = 0
+    status = "COMPLETED"
+    final_answer = ""
+
+    for iteration in range(max_iterations):
+
+        # Check timeout before every model call.
+        elapsed = time.monotonic() - start_time
+
+        if elapsed >= time_limit_seconds:
+            status = "FALLBACK_TIMEOUT"
+            final_answer = (
+                "Human handoff required: agent time limit reached. "
+                f"Completed {len(steps)} tool executions."
+            )
+            break
+
+        response = mock_llm.chat(messages, tools=TOOLS_SPEC)
+
+        llm_calls += 1
+        tokens_used += response.usage.total_tokens
+
+        # Stop immediately if the token budget is exceeded.
+        # Do not execute any tool requested by this response.
+        if tokens_used > token_limit:
+            status = "FALLBACK_TOKEN_LIMIT"
+            final_answer = (
+                "Human handoff required: token budget exceeded. "
+                f"Completed {len(steps)} tool executions."
+            )
+            break
+
+        assistant_message = response.choices[0].message
+
+        if response.choices[0].finish_reason != "tool_calls":
+            final_answer = assistant_message.content or ""
+            break
+
+        messages.append({
+            "role": "assistant",
+            "content": assistant_message.content,
+            "tool_calls": [
+                {
+                    "id": call.id,
+                    "name": call.name,
+                    "arguments": call.arguments,
+                }
+                for call in assistant_message.tool_calls
+            ],
+        })
+
+        for call in assistant_message.tool_calls:
+            tool_name = call.name
+            arguments = call.arguments
+
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+
+            tool_function = TOOL_MAP.get(tool_name)
+
+            if tool_function is None:
+                observation = {
+                    "error": f"Unknown tool: {tool_name}"
+                }
+            else:
+                observation = tool_function(**arguments)
+
+            steps.append({
+                "tool": tool_name,
+                "args": arguments,
+                "observation": observation,
+            })
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "name": tool_name,
+                "content": json.dumps(observation),
+            })
+
+    else:
+        status = "FALLBACK_MAX_ITERATIONS"
+        final_answer = (
+            "Human handoff required: maximum agent iterations reached. "
+            f"Completed {len(steps)} tool executions."
+        )
+
+    # Assign business outcome only when no safety fallback occurred.
+    if status == "COMPLETED":
+        if final_answer.startswith("REFUND:"):
+            status = "REFUND"
+        elif final_answer.startswith("ESCALATE:"):
+            status = "ESCALATE"
+        elif final_answer.startswith("DENIED:"):
+            status = "DENIED"
+        elif final_answer.startswith("NOT_FOUND:"):
+            status = "NOT_FOUND"
+        elif final_answer.startswith("NEEDS_INFO:"):
+            status = "NEEDS_INFO"
+
+    return {
+        "scenario_id": scenario_id,
+        "status": status,
+        "final_answer": final_answer,
+        "steps": steps,
+        "llm_calls": llm_calls,
+        "tokens_used": tokens_used,
+    }
+
+def save_agent_run(result):
+    """Append one agent execution record to a JSONL file."""
+
+    import json
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    output_file = OUTPUT_DIR / "agent_runs.jsonl"
+
+    record = {
+        "scenario_id": result["scenario_id"],
+        "status": result["status"],
+        "final_answer": result["final_answer"],
+        "llm_calls": result["llm_calls"],
+        "tokens_used": result["tokens_used"],
+        "steps": result["steps"],
+    }
+
+    with output_file.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(record) + "\n")
+
+    return record
+
 if __name__ == "__main__":
     chunks = chunk_documents()
 

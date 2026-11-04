@@ -1138,3 +1138,70 @@ Implemented five tools in `src/policy_rag.py` and connected them through `TOOLS_
 ```powershell
 python -c "import sys; sys.path.insert(0,'src'); from policy_rag import TOOLS_SPEC, TOOL_MAP; print('Tool specifications:', len(TOOLS_SPEC)); print('Tool mappings:', list(TOOL_MAP.keys())); assert len(TOOLS_SPEC) == 5; assert set(TOOL_MAP.keys()) == {tool['name'] for tool in TOOLS_SPEC}; print('Task 5 validation: PASS')"
 ```
+
+### Task 6: Build the ReAct Agent
+
+Implemented `run_agent()` in `src/policy_rag.py` using the supplied offline `mock_llm.py`.
+
+**Agent implementation**
+
+- Uses `mock_llm.chat()` to request tool calls and final responses.
+- Executes requested tools through `TOOL_MAP`.
+- Appends assistant tool-call messages and tool observations to the conversation.
+- Tracks scenario ID, execution status, final answer, tool steps, LLM calls and token usage.
+- Implements `save_agent_run()` to append execution records to `outputs/agent_runs.jsonl`.
+
+**Scenario evaluation**
+
+| Scenario | Expected outcome | Actual outcome | LLM calls | Tokens |
+|---|---|---|---:|---:|
+| S1 | REFUND – INR 128.25 | REFUND | 5 | 1108 |
+| S2 | REFUND – INR 135.00 | REFUND | 5 | 1108 |
+| S3 | ESCALATE – INR 1999.00 | ESCALATE | 5 | 1095 |
+| S4 | DENIED | DENIED | 4 | 767 |
+| S5 | DENIED | DENIED | 3 | 455 |
+| S6 | NOT_FOUND | NOT_FOUND | 2 | 133 |
+| S7 | FALLBACK | FALLBACK_MAX_ITERATIONS | 6 | 3180 |
+
+**Execution output**
+
+- Saved all seven scenario records in `outputs/agent_runs.jsonl`.
+- Each JSONL record contains `scenario_id`, `status`, `final_answer`, `llm_calls`, `tokens_used` and `steps`.
+- Each step records the tool name, arguments and observation.
+- Verified seven valid JSON records with all required fields.
+
+**Validation:** All seven scenario outcomes and refund amounts matched the assignment expectations.
+
+### Task 7: Implement Agent Safety Limits
+
+Updated `run_agent()` with three safety mechanisms.
+
+**1. Maximum iteration limit**
+
+- Stops the agent after the configured maximum number of model calls.
+- Returns `FALLBACK_MAX_ITERATIONS`.
+- S7 validation: 6 LLM calls, 6 tool executions and 3180 tokens.
+
+**2. Token limit**
+
+- Tracks cumulative token usage after every model response.
+- Stops immediately when token usage exceeds the configured limit.
+- Does not execute the tool requested by the response that exceeds the budget.
+- S1 validation with `token_limit=200`: `FALLBACK_TOKEN_LIMIT`, 3 LLM calls, 472 tokens and 2 completed tool executions.
+
+**3. Timeout limit**
+
+- Uses `time.monotonic()` to track elapsed execution time.
+- Checks the time limit before every model call.
+- Returns `FALLBACK_TIMEOUT` when the limit is reached.
+- S1 validation with `time_limit_seconds=0`: 0 LLM calls, 0 tokens and 0 tool executions.
+
+**Safety validation summary**
+
+| Test | Status | Result |
+|---|---|---|
+| S7 iteration limit | PASS | FALLBACK_MAX_ITERATIONS |
+| S1 token limit (200) | PASS | FALLBACK_TOKEN_LIMIT |
+| S1 timeout (0 seconds) | PASS | FALLBACK_TIMEOUT |
+
+All fallback responses include a human-handoff message and preserve completed tool execution steps.
