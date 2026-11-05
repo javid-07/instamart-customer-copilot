@@ -1249,3 +1249,13 @@ Used scenario S1 with order `ORD-100048`.
 | Duplicate tool executions | 0 |
 
 **Validation:** The resumed agent successfully completed scenario S1 with the expected refund amount. All four tools executed exactly once across the crash and resume operations.
+
+### Task 9: ReAct versus Plan-and-Execute
+
+In our ReAct agent, the model decides what to do next based on the result of each tool execution. For S1, it took 5 model calls and 1,108 tokens. S5 required 3 calls and 455 tokens, while S6 required only 2 calls and 133 tokens.
+
+In a plan-and-execute approach, the model creates the complete list of steps at the beginning, and the system executes them one by one. This approach can reduce model calls when the workflow is predictable. However, if something unexpected happens, such as an order not being found or an order being cancelled, the original plan may need to be changed.
+
+ReAct handles these situations better because it checks each tool result before deciding the next action. For example, if an order is not found, the agent can stop without attempting to calculate or issue a refund.
+
+I would choose ReAct for this refund workflow because every refund depends on the order status, delivery time and refund amount. Checking these details at each step makes the process more reliable and helps prevent incorrect refunds, even if it requires more model calls.
