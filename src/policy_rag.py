@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 POLICY_DIR = ROOT / "data" / "policies"
 DB_PATH = ROOT / "data" / "instamart.db"
 OUTPUT_DIR = ROOT / "outputs"
+STATE_DIR = ROOT / "state"
 REFUND_LEDGER = OUTPUT_DIR / "refund_ledger.jsonl"
 
 def get_order(order_id):
@@ -318,19 +319,64 @@ def evaluate_policy(overlap=10):
 
     return results
 
+def save_checkpoint(
+    run_id,
+    scenario_id,
+    user_message,
+    messages,
+    tokens_used,
+    llm_calls,
+    steps,
+    max_iterations,
+    token_limit,
+    time_limit_seconds,
+):
+    """Save the agent's current state so execution can be resumed."""
+
+    import json
+
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    checkpoint = {
+        "run_id": run_id,
+        "scenario_id": scenario_id,
+        "user_message": user_message,
+        "messages": messages,
+        "tokens_used": tokens_used,
+        "llm_calls": llm_calls,
+        "step_number": len(steps),
+        "steps": steps,
+        "tools_executed": [step["tool"] for step in steps],
+        "max_iterations": max_iterations,
+        "token_limit": token_limit,
+        "time_limit_seconds": time_limit_seconds,
+    }
+
+    checkpoint_file = STATE_DIR / f"{run_id}.json"
+
+    with checkpoint_file.open("w", encoding="utf-8") as file:
+        json.dump(checkpoint, file, indent=2)
+
+    return checkpoint_file
+
 def run_agent(
     user_message,
     scenario_id,
     max_iterations=6,
     token_limit=6000,
     time_limit_seconds=10,
+    run_id=None,
+    simulate_crash_after=None,
 ):
     """Run a ReAct agent with iteration, token and time limits."""
 
     import json
     import time
+    import uuid
     import mock_llm
 
+    if run_id is None:
+        run_id = uuid.uuid4().hex
     start_time = time.monotonic()
 
     messages = [
@@ -432,6 +478,27 @@ def run_agent(
                 "content": json.dumps(observation),
             })
 
+            save_checkpoint(
+                run_id=run_id,
+                scenario_id=scenario_id,
+                user_message=user_message,
+                messages=messages,
+                tokens_used=tokens_used,
+                llm_calls=llm_calls,
+                steps=steps,
+                max_iterations=max_iterations,
+                token_limit=token_limit,
+                time_limit_seconds=time_limit_seconds,
+            )
+
+            if (
+                simulate_crash_after is not None
+                and len(steps) == simulate_crash_after
+            ):
+                raise RuntimeError(
+                    f"Simulated crash after {len(steps)} tool executions."
+                )
+
     else:
         status = "FALLBACK_MAX_ITERATIONS"
         final_answer = (
@@ -453,6 +520,152 @@ def run_agent(
             status = "NEEDS_INFO"
 
     return {
+        "run_id": run_id,
+        "scenario_id": scenario_id,
+        "status": status,
+        "final_answer": final_answer,
+        "steps": steps,
+        "llm_calls": llm_calls,
+        "tokens_used": tokens_used,
+    }
+
+def resume_agent(run_id):
+    """Resume an agent run from its latest checkpoint."""
+
+    import json
+    import time
+    import mock_llm
+
+    checkpoint_file = STATE_DIR / f"{run_id}.json"
+
+    if not checkpoint_file.exists():
+        raise FileNotFoundError(
+            f"No checkpoint found for run ID: {run_id}"
+        )
+
+    with checkpoint_file.open("r", encoding="utf-8") as file:
+        checkpoint = json.load(file)
+
+    scenario_id = checkpoint["scenario_id"]
+    user_message = checkpoint["user_message"]
+    messages = checkpoint["messages"]
+    steps = checkpoint["steps"]
+    tokens_used = checkpoint["tokens_used"]
+    llm_calls = checkpoint["llm_calls"]
+
+    max_iterations = checkpoint["max_iterations"]
+    token_limit = checkpoint["token_limit"]
+    time_limit_seconds = checkpoint["time_limit_seconds"]
+
+    start_time = time.monotonic()
+    status = "COMPLETED"
+    final_answer = ""
+
+    while llm_calls < max_iterations:
+
+        if time.monotonic() - start_time >= time_limit_seconds:
+            status = "FALLBACK_TIMEOUT"
+            final_answer = (
+                "Human handoff required: agent time limit reached. "
+                f"Completed {len(steps)} tool executions."
+            )
+            break
+
+        response = mock_llm.chat(messages, tools=TOOLS_SPEC)
+
+        llm_calls += 1
+        tokens_used += response.usage.total_tokens
+
+        if tokens_used > token_limit:
+            status = "FALLBACK_TOKEN_LIMIT"
+            final_answer = (
+                "Human handoff required: token budget exceeded. "
+                f"Completed {len(steps)} tool executions."
+            )
+            break
+
+        assistant_message = response.choices[0].message
+
+        if response.choices[0].finish_reason != "tool_calls":
+            final_answer = assistant_message.content or ""
+            break
+
+        messages.append({
+            "role": "assistant",
+            "content": assistant_message.content,
+            "tool_calls": [
+                {
+                    "id": call.id,
+                    "name": call.name,
+                    "arguments": call.arguments,
+                }
+                for call in assistant_message.tool_calls
+            ],
+        })
+
+        for call in assistant_message.tool_calls:
+            tool_name = call.name
+            arguments = call.arguments
+
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+
+            tool_function = TOOL_MAP.get(tool_name)
+
+            if tool_function is None:
+                observation = {
+                    "error": f"Unknown tool: {tool_name}"
+                }
+            else:
+                observation = tool_function(**arguments)
+
+            steps.append({
+                "tool": tool_name,
+                "args": arguments,
+                "observation": observation,
+            })
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "name": tool_name,
+                "content": json.dumps(observation),
+            })
+
+            save_checkpoint(
+                run_id=run_id,
+                scenario_id=scenario_id,
+                user_message=user_message,
+                messages=messages,
+                tokens_used=tokens_used,
+                llm_calls=llm_calls,
+                steps=steps,
+                max_iterations=max_iterations,
+                token_limit=token_limit,
+                time_limit_seconds=time_limit_seconds,
+            )
+
+    else:
+        status = "FALLBACK_MAX_ITERATIONS"
+        final_answer = (
+            "Human handoff required: maximum agent iterations reached. "
+            f"Completed {len(steps)} tool executions."
+        )
+
+    if status == "COMPLETED":
+        if final_answer.startswith("REFUND:"):
+            status = "REFUND"
+        elif final_answer.startswith("ESCALATE:"):
+            status = "ESCALATE"
+        elif final_answer.startswith("DENIED:"):
+            status = "DENIED"
+        elif final_answer.startswith("NOT_FOUND:"):
+            status = "NOT_FOUND"
+        elif final_answer.startswith("NEEDS_INFO:"):
+            status = "NEEDS_INFO"
+
+    return {
+        "run_id": run_id,
         "scenario_id": scenario_id,
         "status": status,
         "final_answer": final_answer,

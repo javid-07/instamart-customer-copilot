@@ -1205,3 +1205,47 @@ Updated `run_agent()` with three safety mechanisms.
 | S1 timeout (0 seconds) | PASS | FALLBACK_TIMEOUT |
 
 All fallback responses include a human-handoff message and preserve completed tool execution steps.
+
+### Task 8: Implement Checkpointing and Resume
+
+Implemented checkpointing and recovery in `src/policy_rag.py` using `save_checkpoint()` and `resume_agent()`.
+
+**Checkpoint implementation**
+
+- Created a `state/` directory to store agent checkpoint files.
+- Each checkpoint is saved as `state/<run_id>.json`.
+- Checkpoints contain the run ID, scenario ID, complete conversation messages, token usage, LLM call count, step number, completed tool steps, and executed-tool history.
+- A checkpoint is saved immediately after each tool observation is appended to the conversation.
+- Added `resume_agent(run_id)` to restore the saved conversation and continue execution without repeating completed tools.
+
+**Crash and resume demonstration**
+
+Used scenario S1 with order `ORD-100048`.
+
+1. Started the agent with run ID `S1-crash-resume-demo`.
+2. Simulated a crash immediately after the second tool execution.
+3. Verified that the checkpoint contained two completed steps and the tools `get_order` and `search_policy`.
+4. Called `resume_agent()` with the same run ID.
+5. The agent continued from the saved conversation and completed the refund.
+
+**Tool execution sequence**
+
+| Execution | Tool | Stage |
+|---:|---|---|
+| 1 | `get_order` | Before crash |
+| 2 | `search_policy` | Before crash |
+| 3 | `calculate_refund` | After resume |
+| 4 | `issue_refund` | After resume |
+
+**Validation results**
+
+| Metric | Result |
+|---|---:|
+| Final status | REFUND |
+| Refund amount | INR 128.25 |
+| Total LLM calls | 5 |
+| Total tokens | 1,108 |
+| Total tool executions | 4 |
+| Duplicate tool executions | 0 |
+
+**Validation:** The resumed agent successfully completed scenario S1 with the expected refund amount. All four tools executed exactly once across the crash and resume operations.
